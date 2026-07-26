@@ -70,13 +70,23 @@ class PublicPortalTest(unittest.TestCase):
         payload.update(overrides)
         return payload
 
-    def test_portal_home_is_local_core_entry_and_privacy_has_no_consent_ui(self) -> None:
+    def test_portal_home_shows_fixed_product_demo_and_local_core_entry(self) -> None:
         home = self.client.get("/")
         privacy = self.client.get("/privacy")
         mascot = self.client.get("/api/portal/mascot.png")
 
         self.assertEqual(home.status_code, 200)
         self.assertIn("网页是入口，论文仍在你的电脑里", home.text)
+        self.assertIn('id="product-demo"', home.text)
+        self.assertIn("先体验一次真正的论文精读", home.text)
+        self.assertIn("Attention Is All You Need", home.text)
+        self.assertIn("arXiv:1706.03762", home.text)
+        self.assertIn("固定公开样例，译文、笔记与分析结果均为预生成内容", home.text)
+        self.assertIn("这篇论文的信息足够复现吗？", home.text)
+        self.assertIn("部分可复现", home.text)
+        self.assertIn("论文正文未提供官方代码仓库", home.text)
+        self.assertIn("如果这个方向对你有帮助，欢迎 Star", home.text)
+        self.assertIn("https://github.com/xiaoyu-ops/Read_with_you", home.text)
         self.assertIn("先启动，再打开", home.text)
         self.assertIn("前往 GitHub 安装 / 启动", home.text)
         self.assertIn("https://github.com/xiaoyu-ops/Read_with_you#本地启动", home.text)
@@ -109,6 +119,37 @@ class PublicPortalTest(unittest.TestCase):
             "/openapi.json",
         ):
             self.assertEqual(self.client.get(path).status_code, 404, path)
+
+    def test_demo_assets_are_fixed_immutable_and_public_portal_only(self) -> None:
+        total_size = 0
+        for name in ("attention-p1-v1.webp", "attention-p7-v1.webp"):
+            response = self.client.get(f"/api/portal/demo-assets/{name}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers["content-type"], "image/webp")
+            self.assertEqual(
+                response.headers["cache-control"],
+                "public, max-age=31536000, immutable",
+            )
+            self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+            total_size += len(response.content)
+        self.assertLessEqual(total_size, 300_000)
+
+        for path in (
+            "/api/portal/demo-assets/not-allowed.webp",
+            "/api/portal/demo-assets/%2E%2E%2Fattention-p1-v1.webp",
+            "/api/portal/demo-assets/folder/attention-p1-v1.webp",
+        ):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
+
+        for mode in ("self_hosted", "local_core"):
+            with TestClient(api_main.create_app(mode)) as client:
+                self.assertEqual(
+                    client.get(
+                        "/api/portal/demo-assets/attention-p1-v1.webp"
+                    ).status_code,
+                    404,
+                    mode,
+                )
 
     def test_portal_home_does_not_depend_on_release_manifest(self) -> None:
         with patch(

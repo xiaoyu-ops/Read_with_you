@@ -10,7 +10,17 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .public_portal_ui import ANALYTICS_SCRIPT, CORE_STATUS_SCRIPT, PORTAL_CSS, map_script
+from .public_portal_demo import (
+    DEMO_CSS,
+    demo_markup,
+    resolve_demo_asset,
+)
+from .public_portal_ui import (
+    ANALYTICS_SCRIPT,
+    CORE_STATUS_SCRIPT,
+    PORTAL_CSS,
+    map_script,
+)
 from .routes_search import search_papers
 from ..retrieval.literature_map import (
     LITERATURE_MAP_DEFAULT_NODES,
@@ -65,13 +75,13 @@ def _page(*, title: str, body: str) -> HTMLResponse:
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="data:,">
   <title>{escape(title)}</title>
-  <style>{PORTAL_CSS}</style>
+  <style>{PORTAL_CSS}{DEMO_CSS}</style>
 </head>
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
   <header class="site-header">
     <a class="brand" href="/" aria-label="陪你读"><span>陪你<em>读</em></span><img class="brand-mascot" src="/api/portal/mascot.png" alt="" aria-hidden="true"></a>
-    <nav class="site-nav" aria-label="门户导航"><a href="/#local-core">使用说明</a><a href="/privacy">隐私说明</a><a href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">GitHub</a></nav>
+    <nav class="site-nav" aria-label="门户导航"><a href="/#product-demo">产品演示</a><a href="/#local-core">本地使用</a><a href="/privacy">隐私说明</a><a href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">GitHub</a></nav>
   </header>
   {ANALYTICS_SCRIPT}
   {body}
@@ -95,6 +105,7 @@ async def portal_home() -> HTMLResponse:
         <a id="install-core" class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>
       </div>
       <p class="status">本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
+      <a class="demo-jump" href="#product-demo">看看精读与证据分析怎么工作 ↓</a>
     </div>
     <aside id="core-summary" class="core-summary" data-state="checking" aria-live="polite">
       <p id="core-summary-label" class="core-summary-label">正在检查本机</p>
@@ -106,6 +117,7 @@ async def portal_home() -> HTMLResponse:
       </dl>
     </aside>
   </div>
+  {demo_markup()}
   <section id="local-core" class="core-entry" aria-labelledby="local-core-title">
     <p id="core-state" class="core-state"><span class="core-state-dot" aria-hidden="true"></span><span>正在检查本地 Core</span></p>
     <div>
@@ -135,6 +147,21 @@ async def portal_mascot() -> FileResponse:
         _MASCOT_PATH,
         media_type="image/png",
         headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/demo-assets/{name:path}", include_in_schema=False)
+async def portal_demo_asset(name: str) -> FileResponse:
+    path = resolve_demo_asset(name)
+    if path is None:
+        raise HTTPException(status_code=404, detail="demo_asset_not_found")
+    return FileResponse(
+        path,
+        media_type="image/webp",
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

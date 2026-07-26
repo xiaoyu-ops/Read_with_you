@@ -224,6 +224,10 @@ sudo systemctl enable --now peinidu
 ## 生产配置建议
 
 - `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露公开学术元数据检索、可重建论文图谱、下载/隐私页、无内容匿名计数、聚合数字与 `/health`；不创建论文目录、不挂载 `/assets`，也不注册 PDF 导入、阅读、翻译、笔记、文献库、Agent、配置、内部 LLM 或 OpenAPI 路由。首页以 GitHub 项目说明作为安装/更新权威，并通过 `http://127.0.0.1:8520/portal-probe` 判断是否显示本地工作台入口；探测失败时不得声称用户已安装。
+- `public_portal` 的产品演示只从 `/api/portal/demo-assets/{name}` 返回
+  `attention-p1-v1.webp` 与 `attention-p7-v1.webp` 两个固定白名单素材，使用一年
+  immutable 缓存。未知名称、路径穿越和其他运行模式必须 404；素材随镜像发布，
+  不得改为读取论文目录、portable bundle 或运行时用户文件。
 - `PEINIDU_LITERATURE_MAP_CACHE_DIR`: `public_portal` 的独立图谱派生缓存目录；不得指向论文目录、portable bundle 或 local Core 数据目录。
 - `translation_concurrency`: 先用 3-5，按 provider 限流和服务器负载调整。
 - `agent_concurrency`: 先用 1-2，公开访问时避免四 Agent 分析压满 LLM provider。
