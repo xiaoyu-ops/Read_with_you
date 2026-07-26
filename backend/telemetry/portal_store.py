@@ -139,9 +139,15 @@ def aggregate_stats(*, today: date | None = None) -> dict[str, Any]:
     for row in events:
         daily.setdefault(row["event_date"], {})[row["event"]] = row["count"]
     today_values = daily.get(current.isoformat(), {})
+    portal_active = today_values.get("portal_visited", 0)
+    core_active = today_values.get("core_started", 0)
     return {
         "date": current.isoformat(),
-        "active_today": today_values.get("core_started", 0),
+        "active_today": portal_active + core_active,
+        "portal_active_today": portal_active,
+        "core_active_today": core_active,
+        "searchers_today": today_values.get("search_submitted", 0),
+        "maps_today": today_values.get("map_opened", 0),
         "readers_today": today_values.get("reader_opened", 0),
         "total_downloads": downloads,
         "daily": [

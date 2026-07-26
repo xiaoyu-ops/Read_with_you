@@ -417,11 +417,17 @@ def create_app(runtime_mode: RuntimeMode | str | None = None) -> FastAPI:
         }
 
     if mode is RuntimeMode.PUBLIC_PORTAL:
-        from .routes_public_portal import privacy_page
+        from .routes_public_portal import privacy_page, public_literature_map_page
 
         application.add_api_route(
             "/privacy",
             privacy_page,
+            methods=["GET"],
+            include_in_schema=False,
+        )
+        application.add_api_route(
+            "/literature-map/{paper_ref:path}",
+            public_literature_map_page,
             methods=["GET"],
             include_in_schema=False,
         )

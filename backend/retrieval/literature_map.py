@@ -78,7 +78,13 @@ def candidate_paper_ref(*, paper_id: str | None, arxiv_id: str | None) -> str | 
 
 def _cache_path(paper_ref: str) -> Path:
     digest = hashlib.sha256(paper_ref.encode("utf-8")).hexdigest()
-    return files.DATA_DIR / "literature_maps" / f"{digest}.json"
+    configured = os.environ.get("PEINIDU_LITERATURE_MAP_CACHE_DIR", "").strip()
+    cache_root = (
+        Path(configured).expanduser().resolve()
+        if configured
+        else files.DATA_DIR / "literature_maps"
+    )
+    return cache_root / f"{digest}.json"
 
 
 def _read_cache(paper_ref: str) -> tuple[dict[str, Any], float] | None:

@@ -35,13 +35,23 @@ class SearchResponse(BaseModel):
 @router.post("/search", response_model=SearchResponse)
 async def search(req: SearchRequest) -> SearchResponse:
     """双源检索（arXiv + Semantic Scholar）+ rapidfuzz 模糊匹配排序。"""
-    query = req.query.strip()
+    return await search_papers(req.query, max_results=req.max_results)
+
+
+async def search_papers(
+    raw_query: str,
+    *,
+    max_results: int = 10,
+    use_cache: bool = True,
+) -> SearchResponse:
+    """Run the shared public-metadata search without requiring content storage."""
+    query = raw_query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="query 不能为空")
 
-    max_results = max(1, min(req.max_results, 20))
+    max_results = max(1, min(max_results, 20))
     cache_key = (query.casefold(), max_results)
-    cached = _get_search_cache(cache_key)
+    cached = _get_search_cache(cache_key) if use_cache else None
     if cached is not None:
         candidates, count = cached
         return SearchResponse(query=query, candidates=candidates[:max_results], count=count)
@@ -53,7 +63,8 @@ async def search(req: SearchRequest) -> SearchResponse:
 
     ranked = merge_and_rank(query, arxiv_results, s2_results)
     candidates = [c.to_dict() for c in ranked[:max_results]]
-    _set_search_cache(cache_key, candidates, len(ranked))
+    if use_cache:
+        _set_search_cache(cache_key, candidates, len(ranked))
     return SearchResponse(
         query=query,
         candidates=candidates,

@@ -13,8 +13,11 @@ TelemetryEventName = Literal[
     "reader_opened",
     "translation_succeeded",
     "agent_response",
+    "portal_visited",
+    "search_submitted",
+    "map_opened",
 ]
-TelemetryPlatform = Literal["macos", "windows", "linux", "other"]
+TelemetryPlatform = Literal["macos", "windows", "linux", "web", "other"]
 
 
 class PortalTelemetryEvent(BaseModel):

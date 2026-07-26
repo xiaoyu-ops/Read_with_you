@@ -258,11 +258,23 @@ class LiteratureMapTest(unittest.TestCase):
         self.assertEqual(result, {"ok": True})
         self.assertEqual(client.request.await_count, 2)
 
-    def test_route_is_content_only(self) -> None:
+    def test_local_api_and_public_page_reject_invalid_identifiers(self) -> None:
         with TestClient(create_app("local_core")) as client:
             self.assertEqual(client.get("/literature-map/not-valid").status_code, 400)
         with TestClient(create_app("public_portal")) as client:
             self.assertEqual(client.get("/literature-map/not-valid").status_code, 404)
+
+    def test_public_cache_directory_can_be_isolated_from_paper_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_root = Path(tmp) / "portal-derived-maps"
+            with patch.dict(
+                "os.environ",
+                {"PEINIDU_LITERATURE_MAP_CACHE_DIR": str(cache_root)},
+            ):
+                path = literature_map._cache_path(f"ARXIV:1706.03762:40")
+
+        self.assertEqual(path.parent, cache_root.resolve())
+        self.assertEqual(path.suffix, ".json")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ services:
     environment:
       PEINIDU_RUNTIME_MODE: public_portal
       PEINIDU_PORTAL_DATA_DIR: /var/lib/peinidu-portal
+      PEINIDU_LITERATURE_MAP_CACHE_DIR: /var/lib/peinidu-portal/literature-maps
     command:
       - uvicorn
       - backend.api.main:app

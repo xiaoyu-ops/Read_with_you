@@ -223,7 +223,8 @@ sudo systemctl enable --now peinidu
 
 ## 生产配置建议
 
-- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露下载/隐私页、内容为空的匿名统计、聚合数字与 `/health`，不创建内容目录、不挂载 `/assets`、不注册论文、翻译、Agent、配置、内部 LLM 或 OpenAPI 路由。下载按钮只按服务端已验证的 release manifest 渲染；没有正式发布时明确显示开发预览。本地工作台入口不得声称用户已安装，只在用户已经启动 `127.0.0.1:8520` 后使用，并同时展示健康检查和源码启动说明。
+- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露公开学术元数据检索、可重建论文图谱、下载/隐私页、无内容匿名计数、聚合数字与 `/health`；不创建论文目录、不挂载 `/assets`，也不注册 PDF 导入、阅读、翻译、笔记、文献库、Agent、配置、内部 LLM 或 OpenAPI 路由。下载按钮只按服务端已验证的 release manifest 渲染；没有正式发布时明确显示开发预览。本地工作台入口不得声称用户已安装，只在用户已经启动 `127.0.0.1:8520` 后使用，并同时展示健康检查和源码启动说明。
+- `PEINIDU_LITERATURE_MAP_CACHE_DIR`: `public_portal` 的独立图谱派生缓存目录；不得指向论文目录、portable bundle 或 local Core 数据目录。
 - `translation_concurrency`: 先用 3-5，按 provider 限流和服务器负载调整。
 - `agent_concurrency`: 先用 1-2，公开访问时避免四 Agent 分析压满 LLM provider。
 - `PEINIDU_RATE_LIMIT_PER_MINUTE`: 保护搜索、提取、翻译、分析等昂贵 API；默认 120，公开部署建议先保持开启。
@@ -343,6 +344,7 @@ Next standalone 必须以 `images.unoptimized=true` 构建。本地 Core 的产�
 ```bash
 PEINIDU_RUNTIME_MODE=public_portal \
 PEINIDU_PORTAL_DATA_DIR=/var/lib/peinidu-portal \
+PEINIDU_LITERATURE_MAP_CACHE_DIR=/var/lib/peinidu-portal/literature-maps \
 PEINIDU_RELEASE_MANIFEST=/etc/peinidu/release.json \
 uvicorn backend.api.main:app --host 127.0.0.1 --port 8540 --no-access-log
 ```
@@ -354,6 +356,7 @@ uvicorn backend.api.main:app --host 127.0.0.1 --port 8540 --no-access-log
 ```bash
 install -d -o 10001 -g 10001 /var/lib/peinidu-portal
 PEINIDU_PORTAL_DATA_DIR=/var/lib/peinidu-portal \
+PEINIDU_LITERATURE_MAP_CACHE_DIR=/var/lib/peinidu-portal/literature-maps \
 docker compose -p peinidu-portal \
   -f deploy/public-portal.compose.yml up -d --build
 
@@ -375,10 +378,10 @@ systemctl reload nginx
 完成 Developer ID/notarization、Authenticode、干净机烟测、公开 SHA-256 和第三方
 许可清单。
 
-自 2026-07-25 起，本地 Core 不再显示匿名统计设置，也不会在启动或打开阅读器时
-自动发送使用事件。`/api/telemetry/*` 与公网 `POST /api/portal/telemetry` 暂时
-保留为旧安装兼容接口，新客户端不调用。以后若重新引入使用统计，必须重新经过明确
-产品决策和用户可见的授权流程，不能恢复为隐藏埋点。
+自 2026-07-26 起，产品默认发送无内容的匿名使用计数，不显示授权卡或统计开关。
+公网记录 `portal_visited`、`search_submitted`、`map_opened`，local Core 记录
+`core_started` 与首个可读 PDF 对应的 `reader_opened`。这些事件只用于回答当天
+有多少人访问、检索、打开图谱或真正打开阅读器；发送失败不得影响任何产品流程。
 
 历史兼容接口仍只接受以下固定 JSON 字段：
 
@@ -388,13 +391,13 @@ event_date / daily_id / event / platform / app_version
 
 - `daily_id` 由只保存在本机的随机安装 ID 和 UTC 日期派生；跨日不同，服务端无法
   用它建立长期设备轨迹。
-- 同一安装、同一日、同一事件只计一次；固定事件 schema 继续保留，但当前客户端
-  不主动发送。
+- 同一匿名日 ID、同一日、同一事件只计一次；公网随机 ID 每日轮换，local Core
+  由只保存在系统本机的随机安装 ID 按 UTC 日期派生，二者都不能跨日关联。
 - 公网 SQLite 只保存每日匿名 ID、固定枚举、平台、版本和接收时间；用于去重的行
   最多保留 35 天，长期只保留按日期/事件/平台的数字。
 - 论文 ID、标题、PDF、路径、选区、笔记、问题、回答、Provider、Key 和原始安装 ID
   不在 schema 中，额外字段直接返回 422。
-- 历史聚合数字只代表旧版本中主动同意统计的用户，不能解释为当前安装数或用户数。
+- 聚合数字是使用事件计数，不是账号数、安装总数或长期独立用户数。
 
 应用层不得持久化 IP 或 User-Agent。运行 Uvicorn 时使用 `--no-access-log`；Nginx
 为该站点设置 `access_log off;`，不要把请求体写入错误日志或 APM。Cloudflare 仍会
@@ -411,10 +414,15 @@ GET  /api/portal/releases/latest
 GET  /api/portal/download/{macos_arm64|windows_x64}
 POST /api/portal/telemetry
 GET  /api/portal/stats
+POST /api/portal/search
+GET  /literature-map/{paper_ref}
+GET  /api/portal/literature-map/{paper_ref}
 ```
 
-`/papers`、`/assets`、`/translate`、`/agent`、`/config`、内部 LLM、OpenAPI 和
-portable bundle 在 portal 模式中必须继续返回 404。
+公开检索把用户当前提交的查询发送给 arXiv / Semantic Scholar 以完成功能，但不把
+查询写入匿名统计或服务端检索缓存；图谱缓存只含公开、可重建的学术元数据。
+`/papers`、`/assets`、`/translate`、`/agent`、`/config`、内部 LLM、OpenAPI、
+PDF 导入、笔记、文献库和 portable bundle 在 portal 模式中必须继续返回 404。
 
 ## 验证
 
