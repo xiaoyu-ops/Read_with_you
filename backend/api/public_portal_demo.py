@@ -152,6 +152,7 @@ def demo_markup() -> str:
           <p class="demo-step-label">第一步</p>
           <h3>在左页摘要中划选任意文字</h3>
           <p>第 1 页摘要已完整预翻译。像阅读真实 PDF 一样拖动选择，译文会出现在这里。</p>
+          <p class="demo-experience-note"><strong>体验说明：</strong>这里使用预生成的整句译文，选区只能匹配到对应句，因此贴合度会低于真实本地工作台。正式使用时，会直接翻译你实际选中的具体内容。</p>
         </div>
 
         <div class="demo-translation" data-demo-translation hidden>
@@ -162,7 +163,7 @@ def demo_markup() -> str:
           <div lang="zh-CN">
             <span>预生成对应句译文</span>
             <p data-demo-selection-translation></p>
-            <small class="demo-selection-hint">演示只在浏览器内匹配预生成内容，没有调用模型或上传选区。</small>
+            <small class="demo-selection-hint">演示只在浏览器内匹配预生成整句，没有调用模型或上传选区；真实本地工作台会直接翻译具体选区。</small>
           </div>
           <button class="button primary" data-demo-save type="button">保存为方法笔记</button>
         </div>
@@ -563,7 +564,12 @@ DEMO_CSS = r"""
   font-size:12px; font-weight:720; letter-spacing:.04em;
 }
 .demo-step h3 { margin:0; font-family:ui-serif,"Songti SC",serif; font-size:26px }
-.demo-step p:last-child { max-width:48ch; margin:14px 0 0; color:var(--muted) }
+.demo-step>p:not(.demo-step-label) { max-width:48ch; margin:14px 0 0; color:var(--muted) }
+.demo-step .demo-experience-note {
+  margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
+  font-size:12px; line-height:1.65;
+}
+.demo-experience-note strong { color:var(--ink) }
 .demo-translation { display:grid; gap:18px }
 .demo-translation>div { padding-bottom:16px; border-bottom:1px solid var(--line) }
 .demo-translation p { margin:0; white-space:pre-line; font-size:15px; line-height:1.72 }
