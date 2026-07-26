@@ -1,0 +1,43 @@
+services:
+  portal:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: peinidu-public-portal:${PEINIDU_PORTAL_IMAGE_TAG:-local}
+    read_only: true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 0.5
+    environment:
+      PEINIDU_RUNTIME_MODE: public_portal
+      PEINIDU_PORTAL_DATA_DIR: /var/lib/peinidu-portal
+    command:
+      - uvicorn
+      - backend.api.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8540"
+      - --no-access-log
+      - --no-proxy-headers
+    ports:
+      - "127.0.0.1:${PEINIDU_PORTAL_PORT:-8540}:8540"
+    volumes:
+      - ${PEINIDU_PORTAL_DATA_DIR:-./portal-data}:/var/lib/peinidu-portal
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=32m,uid=10001,gid=10001,mode=0700
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen("http://127.0.0.1:8540/health", timeout=3).read()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped

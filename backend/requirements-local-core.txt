@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# BYOK secrets live in macOS Keychain / Windows Credential Manager.
+keyring>=25.6,<26

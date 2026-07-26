@@ -1,0 +1,34 @@
+[
+  {
+    "type": "text",
+    "text": "Layout-Aware Scientific Translation",
+    "text_level": 1,
+    "page_idx": 0,
+    "bbox": [118, 91, 882, 141]
+  },
+  {
+    "type": "text",
+    "text": "The loss is $L(x)$",
+    "page_idx": 0,
+    "bbox": [118, 177, 467, 316]
+  },
+  {
+    "type": "text",
+    "text": "The second column preserves reading order.",
+    "page_idx": 0,
+    "bbox": [533, 177, 882, 316]
+  },
+  {
+    "type": "table",
+    "table_body": "| Model | Score |\n| --- | --- |\n| Pet | 0.98 |",
+    "page_idx": 0,
+    "bbox": [118, 379, 882, 568]
+  },
+  {
+    "type": "image",
+    "img_path": "images/figure-1.jpg",
+    "image_caption": ["Figure 1: Protected visual evidence."],
+    "page_idx": 0,
+    "bbox": [118, 606, 882, 884]
+  }
+]

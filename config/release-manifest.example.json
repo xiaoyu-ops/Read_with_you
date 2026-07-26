@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "downloads": {
+    "macos_arm64": {
+      "url": "https://downloads.example.com/peinidu-local-core-0.2.0-darwin-arm64.zip",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 295698432
+    },
+    "windows_x64": {
+      "url": "https://downloads.example.com/peinidu-local-core-0.2.0-windows-x64.zip",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size_bytes": 314572800
+    }
+  }
+}

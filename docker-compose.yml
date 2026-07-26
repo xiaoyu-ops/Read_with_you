@@ -1,0 +1,188 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    init: true
+    mem_limit: 1g
+    environment:
+      PEINIDU_RUNTIME_MODE: ${PEINIDU_RUNTIME_MODE:-self_hosted}
+      PEINIDU_CORS_ORIGINS: ${PEINIDU_CORS_ORIGINS:-http://localhost:8080}
+      # `.env` 仅在宿主机保存；显式注入后端，以便非 root 进程无需读取该文件。
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      MINERU_API_TOKEN: ${MINERU_API_TOKEN:-}
+      PEINIDU_TRANSLATION_PROVIDER: ${PEINIDU_TRANSLATION_PROVIDER:-deeplx}
+      DEEPLX_API_KEY: ${DEEPLX_API_KEY:-}
+      DEEPLX_API_BASE: ${DEEPLX_API_BASE:-https://api.deeplx.org}
+      DEEPLX_TIMEOUT_SECONDS: ${DEEPLX_TIMEOUT_SECONDS:-30}
+      PEINIDU_ADMIN_TOKEN: ${PEINIDU_ADMIN_TOKEN:-}
+      PEINIDU_PDF_EXPORT_SIDECAR_URL: ${PEINIDU_PDF_EXPORT_SIDECAR_URL:-http://pdf-export:8090}
+      PEINIDU_PDF_EXPORT_SIDECAR_TOKEN: ${PEINIDU_PDF_EXPORT_INTERNAL_TOKEN:-}
+      PEINIDU_PDF_EXPORT_INTERNAL_TOKEN: ${PEINIDU_PDF_EXPORT_INTERNAL_TOKEN:-}
+      # Blank by default: socket peer identity remains authoritative until the
+      # operator explicitly trusts the Nginx container IP/CIDR.
+      PEINIDU_TRUSTED_PROXY_IPS: ${PEINIDU_TRUSTED_PROXY_IPS:-}
+      PEINIDU_PDF_EXPORT_RATE_LIMIT_PER_MINUTE: ${PEINIDU_PDF_EXPORT_RATE_LIMIT_PER_MINUTE:-12}
+      PEINIDU_PDF_EXPORT_MAX_ACTIVE_RUNS: ${PEINIDU_PDF_EXPORT_MAX_ACTIVE_RUNS:-2}
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    networks:
+      - default
+      - pdf-export-internal
+      - browser-control-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  browser:
+    image: mcr.microsoft.com/playwright/mcp:v0.0.75@sha256:3d871c22ea2d4cca0966e2cfb1860e1cb03eb7353725a3d6cffd133296fb04eb
+    profiles: ["browser"]
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    cpus: 1.0
+    entrypoint: ["node", "/app/cli.js"]
+    command:
+      - --headless
+      - --browser
+      - chromium
+      - --no-sandbox
+      - --port
+      - "8931"
+      - --host
+      - 0.0.0.0
+      - --allowed-hosts
+      - browser:8931,localhost:8931,127.0.0.1:8931
+      - --user-data-dir
+      - /home/node/profile
+      - --output-dir
+      - /home/node/output
+      - --output-max-size
+      - "104857600"
+      - --image-responses
+      - omit
+    networks:
+      - browser-control-internal
+      - browser-egress
+    volumes:
+      - playwright-browser-home:/home/node
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=256m,uid=1000,gid=1000,mode=0700
+    healthcheck:
+      test: ["CMD", "node", "-e", "const n=require('net');const s=n.connect(8931,'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  pdf-export:
+    build:
+      context: .
+      dockerfile: sidecar/pdf_export/Dockerfile
+    image: peinidu-pdf-export:2.9.0-f8dffcf4
+    profiles: ["pdf-export"]
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 4g
+    cpus: 2.0
+    stop_grace_period: 45s
+    depends_on:
+      backend:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/pet-sidecar/entrypoint.sh"]
+    command: ["python", "-m", "uvicorn", "app:app", "--app-dir", "/pet-sidecar", "--host", "0.0.0.0", "--port", "8090"]
+    environment:
+      HOME: /work/home
+      XDG_CACHE_HOME: /work/home/.cache
+      XDG_CONFIG_HOME: /work/home/.config
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      PEINIDU_PDF_EXPORT_INTERNAL_TOKEN: ${PEINIDU_PDF_EXPORT_INTERNAL_TOKEN:-}
+      PEINIDU_PDF_EXPORT_INTERNAL_BASE_URL: http://backend:8000/internal/llm/v1
+      PEINIDU_PDF_EXPORT_WORK_ROOT: /work/jobs
+      PEINIDU_PDF_EXPORT_MAX_FILE_BYTES: ${PEINIDU_PDF_EXPORT_MAX_FILE_BYTES:-52428800}
+      PEINIDU_PDF_EXPORT_MAX_PAGES: ${PEINIDU_PDF_EXPORT_MAX_PAGES:-200}
+      PEINIDU_PDF_EXPORT_CONCURRENCY: ${PEINIDU_PDF_EXPORT_CONCURRENCY:-1}
+      PEINIDU_PDF_EXPORT_TIMEOUT_SECONDS: ${PEINIDU_PDF_EXPORT_TIMEOUT_SECONDS:-1800}
+    networks:
+      - pdf-export-internal
+    tmpfs:
+      - /work:rw,nosuid,nodev,noexec,size=3g,uid=10001,gid=10001,mode=0700
+      - /tmp:rw,nosuid,nodev,noexec,size=256m,uid=10001,gid=10001,mode=0700
+    healthcheck:
+      test: ["CMD", "python", "/pet-sidecar/healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE: /api
+    mem_limit: 512m
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    mem_limit: 128m
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - default
+    ports:
+      - "127.0.0.1:${PEINIDU_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  default:
+  pdf-export-internal:
+    internal: true
+  browser-control-internal:
+    internal: true
+  browser-egress:
+
+volumes:
+  playwright-browser-home:

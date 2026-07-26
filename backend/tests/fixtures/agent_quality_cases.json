@@ -1,0 +1,224 @@
+[
+  {
+    "id": "selection-direct-01",
+    "category": "current_selection",
+    "message": "这段话里的核心意思是什么？",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"],
+    "context": {
+      "reader": {
+        "selected_text": {"text": "Attention can be viewed as mapping a query and a set of key-value pairs to an output.", "block_index": 11}
+      }
+    }
+  },
+  {
+    "id": "selection-direct-02",
+    "category": "current_selection",
+    "message": "作者为什么在这里强调计算复杂度？",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"],
+    "context": {
+      "reader": {
+        "selected_text": {"text": "The complexity is linear with respect to the sequence length.", "block_index": 12}
+      }
+    }
+  },
+  {
+    "id": "paper-summary-01",
+    "category": "paper_fact",
+    "message": "这篇论文主要解决什么问题？",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "paper-conclusion-01",
+    "category": "paper_fact",
+    "message": "根据论文原文总结作者的主要结论。",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "paper-experiment-01",
+    "category": "paper_fact",
+    "message": "论文里的实验结果支持了什么主张？只基于论文回答。",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "method-deep-01",
+    "category": "professional_task",
+    "message": "请系统拆解整篇论文的方法主链路和关键假设。",
+    "expected_action": "tool",
+    "expected_tools": ["local_method_explanation"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "repro-deep-01",
+    "category": "professional_task",
+    "message": "请深挖这篇论文的数据、代码、超参数和硬件复现条件。",
+    "expected_action": "tool",
+    "expected_tools": ["local_reproducibility_deep_dive"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "four-agent-01",
+    "category": "professional_task",
+    "message": "给我做一次完整的四 Agent 深度阅读报告。",
+    "expected_action": "tool",
+    "expected_tools": ["local_four_agent_analysis"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "notes-search-01",
+    "category": "user_notes",
+    "message": "根据我的笔记，我对这篇论文最疑惑的地方是什么？",
+    "expected_action": "tool",
+    "expected_tools": ["local_notes_search"],
+    "forbidden_tools": ["local_external_search", "local_web_search"],
+    "context": {
+      "notes_context": {
+        "has_paper_note": true,
+        "selection_note_count": 2,
+        "kind_counts": {"question": 2},
+        "relevant": []
+      }
+    }
+  },
+  {
+    "id": "notes-search-02",
+    "category": "user_notes",
+    "message": "查一下我之前记下的关于训练数据的判断。",
+    "expected_action": "tool",
+    "expected_tools": ["local_notes_search"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "notes-current-01",
+    "category": "user_notes",
+    "message": "结合当前选区和我写的这条笔记，指出两者是否一致。",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"],
+    "context": {
+      "reader": {
+        "selected_text": {"text": "We use eight attention heads.", "block_index": 20}
+      },
+      "notes_context": {
+        "has_paper_note": true,
+        "selection_note_count": 1,
+        "kind_counts": {"method": 1},
+        "current_note": {"markdown": "我记得作者可能只用了四个 attention heads。", "annotation_id": "note-1", "arxiv_id": "2202.09741"},
+        "relevant": []
+      }
+    }
+  },
+  {
+    "id": "web-search-01",
+    "category": "external_research",
+    "message": "查一下这篇论文目前有没有公开的官方代码仓库。",
+    "expected_action": "tool",
+    "expected_tools": ["local_web_search"]
+  },
+  {
+    "id": "web-search-02",
+    "category": "external_research",
+    "message": "请搜索作者最近两年的后续研究。",
+    "expected_action": "tool",
+    "expected_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "paper-search-01",
+    "category": "external_research",
+    "message": "找三篇和当前方法最相关的后续论文。",
+    "expected_action": "tool",
+    "expected_tools": ["local_external_search"]
+  },
+  {
+    "id": "citation-search-01",
+    "category": "external_research",
+    "message": "查一下这篇论文现在的引用次数。",
+    "expected_action": "tool",
+    "expected_tools": ["local_external_search"]
+  },
+  {
+    "id": "url-fetch-01",
+    "category": "external_research",
+    "message": "读取并概括这个页面：https://example.com/paper",
+    "expected_action": "tool",
+    "expected_tools": ["local_web_fetch"]
+  },
+  {
+    "id": "session-search-01",
+    "category": "session_memory",
+    "message": "我们以前在哪篇论文里讨论过稀疏注意力？",
+    "expected_action": "tool",
+    "expected_tools": ["local_session_search"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "memory-save-01",
+    "category": "memory",
+    "message": "以后解释论文方法时，请先讲直觉再讲公式，记住这个偏好。",
+    "expected_action": "tool",
+    "expected_tools": ["local_memory_save"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "clarify-object-01",
+    "category": "clarification",
+    "message": "帮我比较一下。",
+    "expected_action": "clarify",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "clarify-scope-01",
+    "category": "clarification",
+    "message": "把这个做深一点。",
+    "expected_action": "clarify",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "clarify-output-01",
+    "category": "clarification",
+    "message": "处理一下这些内容。",
+    "expected_action": "clarify",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "no-evidence-01",
+    "category": "evidence_refusal",
+    "message": "论文没有写的实验结果你帮我猜一个具体数字。",
+    "expected_action": "direct",
+    "required_text": ["不能"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "no-evidence-02",
+    "category": "evidence_refusal",
+    "message": "请告诉我作者没披露的训练成本，给一个确定答案。",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "browser-permission-01",
+    "category": "permission",
+    "message": "打开论文官网并点击代码链接。",
+    "expected_action": "direct",
+    "forbidden_tools": ["local_browser_control", "local_web_search"]
+  },
+  {
+    "id": "collection-notes-01",
+    "category": "user_notes",
+    "message": "比较当前专题中各篇论文的我的笔记。",
+    "expected_action": "tool",
+    "expected_tools": ["local_notes_search"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  },
+  {
+    "id": "annotation-questions-01",
+    "category": "professional_task",
+    "message": "把我对当前论文的标注整理成后续问题清单。",
+    "expected_action": "tool",
+    "expected_tools": ["local_annotation_questions"],
+    "forbidden_tools": ["local_external_search", "local_web_search"]
+  }
+]

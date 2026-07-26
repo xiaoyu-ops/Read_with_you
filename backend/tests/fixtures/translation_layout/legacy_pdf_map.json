@@ -1,0 +1,56 @@
+{
+  "mapping_version": 6,
+  "pdf_url": "/assets/layout-fixture/original.pdf",
+  "page_count": 2,
+  "mappable_count": 3,
+  "mapping_count": 2,
+  "unmapped_count": 1,
+  "mapped_ratio": 0.667,
+  "average_confidence": 0.91,
+  "low_confidence_count": 0,
+  "mappings": [
+    {
+      "block_index": 0,
+      "page": 1,
+      "confidence": 0.98,
+      "matched_text": "A reliable inline translation fixture.",
+      "boxes": [
+        {
+          "page": 1,
+          "x0": 72,
+          "y0": 90,
+          "x1": 540,
+          "y1": 108,
+          "page_width": 612,
+          "page_height": 792
+        },
+        {
+          "page": 1,
+          "x0": 72,
+          "y0": 112,
+          "x1": 488,
+          "y1": 130,
+          "page_width": 612,
+          "page_height": 792
+        }
+      ]
+    },
+    {
+      "block_index": 1,
+      "page": 2,
+      "confidence": 0.84,
+      "matched_text": "This region must stay visible as original text.",
+      "boxes": [
+        {
+          "page": 2,
+          "x0": 60,
+          "y0": 160,
+          "x1": 286,
+          "y1": 202,
+          "page_width": 612,
+          "page_height": 792
+        }
+      ]
+    }
+  ]
+}

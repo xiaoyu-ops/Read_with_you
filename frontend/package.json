@@ -1,0 +1,45 @@
+{
+  "name": "peinidu-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:inline-reader": "node --test tests/inlineTranslationAudit.test.mjs tests/pdfAssetUrl.test.mjs tests/pdfBackground.test.mjs tests/pdfExport.test.mjs tests/pdfSelectionAudit.test.mjs tests/pdfTextSelection.test.mjs tests/pdfVirtualization.test.mjs tests/readerContext.test.mjs tests/readerEvidence.test.mjs tests/readerReducer.test.mjs tests/readerSession.test.mjs tests/sse.test.mjs tests/translationFit.test.mjs",
+    "test:inline-reader:browser": "playwright test --config=playwright.inline-reader.config.ts",
+    "test:agent-workspace": "node --test tests/agentWorkspace.test.mjs",
+    "test:agent-workspace:browser": "playwright test --config=playwright.agent-workspace.config.ts",
+    "test:local-library": "node --test tests/localPaperLibrary.test.mjs",
+    "test:local-library:browser": "playwright test --config=playwright.local-library.config.ts",
+    "test:settings": "node --test tests/settingsPage.test.mjs",
+    "test:guide": "node --test tests/guidePage.test.mjs",
+    "test:pdf-text-selection:browser": "playwright test --config=playwright.pdf-text-selection.config.ts",
+    "test:translation-fit": "node --test tests/translationFit.test.mjs",
+    "test:translation-fit:browser": "playwright test --config=playwright.translation-fit.config.ts"
+  },
+  "dependencies": {
+    "katex": "^0.17.0",
+    "next": "15.5.21",
+    "next-themes": "^0.4.4",
+    "pdfjs-dist": "^5.6.205",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/katex": "^0.16.8",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "playwright": "^1.61.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "pdf_info": [
+    {
+      "page_idx": 0,
+      "page_size": [612, 792],
+      "para_blocks": [
+        {
+          "type": "title",
+          "bbox": [72, 72, 540, 112],
+          "lines": [
+            {
+              "bbox": [72, 72, 540, 112],
+              "spans": [
+                {
+                  "type": "text",
+                  "bbox": [72, 72, 540, 112],
+                  "content": "Layout-Aware Scientific Translation"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "bbox": [72, 140, 286, 250],
+          "lines": [
+            {
+              "bbox": [72, 140, 286, 162],
+              "spans": [
+                {
+                  "type": "text",
+                  "bbox": [72, 140, 210, 162],
+                  "content": "The loss is"
+                },
+                {
+                  "type": "inline_equation",
+                  "bbox": [214, 140, 286, 162],
+                  "content": "$L(x)$"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "bbox": [326, 140, 540, 250],
+          "lines": [
+            {
+              "bbox": [326, 140, 540, 162],
+              "spans": [
+                {
+                  "type": "text",
+                  "bbox": [326, 140, 540, 162],
+                  "content": "The second column preserves reading order."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "type": "table",
+          "bbox": [72, 300, 540, 450],
+          "blocks": []
+        }
+      ],
+      "images": [
+        {
+          "type": "image",
+          "bbox": [72, 480, 540, 700],
+          "blocks": [
+            {
+              "type": "image_body",
+              "bbox": [72, 480, 540, 650],
+              "lines": []
+            },
+            {
+              "type": "image_caption",
+              "bbox": [72, 660, 540, 690],
+              "lines": [
+                {
+                  "bbox": [72, 660, 540, 690],
+                  "spans": [
+                    {
+                      "type": "text",
+                      "bbox": [72, 660, 540, 690],
+                      "content": "Figure 1: Protected visual evidence."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "interline_equations": [],
+      "discarded_blocks": []
+    }
+  ]
+}

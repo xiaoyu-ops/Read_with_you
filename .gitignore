@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.python-version
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 实际配置（含 API key，不入 git）
+config/config.yaml
+config/*.local.yaml
+config/*.secret.yaml
+
+# 运行时数据
+data/*
+!data/.gitkeep
+output/
+tmp/
+deploy/portal-data/
+*.log
+
+# Node / Next.js
+node_modules/
+.next/
+.next-*/
+.next-build/
+.next-dev/
+.next-t13-playwright/
+.next-t13-stage6-final/
+.next-agent-workspace-playwright/
+dist/
+out/
+*.tsbuildinfo
+.playwright-cli/
+coverage/
+
+# 环境
+.env
+.env.*
+!.env.example
+
+# 本地项目治理 / Agent 协作资料（不作为项目源码发布）
+AGENTS.md
+CLAUDE.md
+DESIGN.md
+PRODUCT.md
+开发历史文档.md
+当前任务.md
+陪你读-项目立项文档.md
+docs/agent-prompt-assembly.md
+.agents/
+.claude/
+.codex/
+.mcp.json
+mcp.json
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Graphify runtime/cache
+.graphify/
+
+# Secrets / credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*

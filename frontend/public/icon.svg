@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="陪你读">
+  <rect width="64" height="64" rx="14" fill="oklch(97% 0.006 250)" />
+  <path d="M18 14h20c5.5 0 10 4.5 10 10v26H26c-4.4 0-8-3.6-8-8V14Z" fill="oklch(31% 0.035 252)" />
+  <path d="M24 23h16M24 31h18M24 39h12" stroke="oklch(94% 0.01 250)" stroke-width="4" stroke-linecap="round" />
+  <path d="M46 24v26H26" fill="none" stroke="oklch(67% 0.11 225)" stroke-width="4" stroke-linecap="round" />
+</svg>

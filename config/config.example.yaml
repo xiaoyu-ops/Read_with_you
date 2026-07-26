@@ -1,0 +1,206 @@
+# 陪你读 — 配置模板
+#
+# 复制为 config.yaml 并填入真实 api_key 后使用。
+# config.yaml 不入 git（见 .gitignore）。
+#
+# api_key 可填 ${ENV_VAR} 形式，启动时从环境变量读取，避免硬编码。
+
+# ─────────────────────────────────────────────────────────────
+# LLM providers — 官方 API + 中转站 API（D8, D18）
+# ─────────────────────────────────────────────────────────────
+llm_providers:
+  # DeepSeek 官方（MVP 默认）
+  # LiteLLM 原生支持 deepseek provider，model 格式 deepseek/<model>
+  - name: deepseek-official
+    type: deepseek
+    api_key: ${DEEPSEEK_API_KEY}
+    # 显式使用官方稳定 endpoint，避免新版 LiteLLM 选择 beta 路径。
+    api_base: https://api.deepseek.com
+    models: [deepseek-v4-flash, deepseek-v4-pro]
+
+  # 官方 OpenAI（备选）
+  - name: openai-official
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    models: [gpt-4o, gpt-4o-mini]
+
+  # 官方 Anthropic（备选）
+  - name: anthropic-official
+    type: anthropic
+    api_key: ${ANTHROPIC_API_KEY}
+    models: [claude-3-5-sonnet, claude-3-5-haiku]
+
+  # 中转站示例（OpenAI 兼容格式，只需改 api_base）
+  # DeepSeek 也可走 OpenAI 兼容格式：api_base 设 https://api.deepseek.com/v1
+  - name: relay-example
+    type: openai
+    api_base: https://relay.example.com/v1
+    api_key: ${RELAY_API_KEY}
+    models: [deepseek-v4-flash, gpt-4o]
+
+# ─────────────────────────────────────────────────────────────
+# 默认 provider / model
+# ─────────────────────────────────────────────────────────────
+default_provider: deepseek-official
+default_model: deepseek-v4-flash
+
+# ─────────────────────────────────────────────────────────────
+# 按任务分配模型（第 7.2 节 task_models）
+# deepseek-v4-pro：强推理，用于需要深度分析的任务
+# deepseek-v4-flash：快速便宜，用于翻译和轻量分析
+# 注意：deepseek-v4-pro 不支持 temperature，client 会自动跳过
+# ─────────────────────────────────────────────────────────────
+task_models:
+  translation: deepseek-v4-flash
+  agent_summary: deepseek-v4-pro
+  agent_reproducibility: deepseek-v4-pro
+  agent_improvement: deepseek-v4-flash
+  agent_highlights: deepseek-v4-flash
+  # Pet 普通对话 / 选区解释 / 工具结果汇总：留空 = 跟随 default_model（推荐快模型，保证交互延迟）
+  agent_chat: ""
+  # LLM 意图分类（每条 Pet 消息前置调用，必须便宜快速）：留空 = 跟随 default_model
+  agent_intent: ""
+
+# ─────────────────────────────────────────────────────────────
+# Agent presets — 模仿 oh-my-opencode-slim
+# 每个 preset 给每个 agent 分配 model + variant
+# variant: low(0.1) / medium(0.4) / high(0.7) / max(1.0) → temperature
+# 注意：deepseek-v4-pro 不支持 temperature，variant 仅作标记不影响实际调用
+# ─────────────────────────────────────────────────────────────
+presets:
+  deepseek:
+    orchestrator:       { model: deepseek-v4-flash, variant: medium }
+    summary:            { model: deepseek-v4-pro,   variant: high }
+    reproducibility:    { model: deepseek-v4-pro,   variant: high }
+    improvement:        { model: deepseek-v4-flash, variant: medium }
+    highlights:         { model: deepseek-v4-flash, variant: low }
+
+  # 全用 deepseek-v4-flash 的省钱 preset
+  deepseek-frugal:
+    orchestrator:       { model: deepseek-v4-flash, variant: medium }
+    summary:            { model: deepseek-v4-flash, variant: high }
+    reproducibility:    { model: deepseek-v4-flash, variant: high }
+    improvement:        { model: deepseek-v4-flash, variant: medium }
+    highlights:         { model: deepseek-v4-flash, variant: low }
+
+  # OpenAI preset（备选，需填 OpenAI key）
+  openai:
+    orchestrator:       { model: gpt-4o,      variant: medium }
+    summary:            { model: gpt-4o,      variant: high }
+    reproducibility:    { model: gpt-4o,      variant: high }
+    improvement:        { model: gpt-4o,      variant: medium }
+    highlights:         { model: gpt-4o-mini, variant: low }
+
+default_preset: deepseek
+
+# ─────────────────────────────────────────────────────────────
+# MCP / 外部工具 servers（默认关闭）
+# 后续可在设置页填写 server 名称、command/url、启用状态和权限范围。
+# permission_scopes: mcp_tool / external_search / browser_control
+# ─────────────────────────────────────────────────────────────
+mcp_servers:
+  - name: local-paper-search
+    transport: stdio
+    command: python
+    args: [-m, backend.tools.mcp_search_server]
+    url:
+    enabled: false
+    tool_name: paper_search
+    timeout_seconds: 12.0
+    permission_scopes: [mcp_tool]
+  # 高星 GitHub 仓库能力 MCP（适合查论文复现仓库 / issue / code）
+  # 使用前在后端进程环境或 .env 中设置 GITHUB_PERSONAL_ACCESS_TOKEN。
+  - name: github-official
+    transport: stdio
+    command: docker
+    args: [run, -i, --rm, -e, GITHUB_PERSONAL_ACCESS_TOKEN, ghcr.io/github/github-mcp-server]
+    url:
+    enabled: false
+    tool_name: search_repositories
+    timeout_seconds: 20.0
+    permission_scopes: [mcp_tool]
+  # 可选 Playwright MCP。只有显式启动 `docker compose --profile browser up`
+  # 并在设置页测试连接成功后，才把 enabled 改为 true。
+  - name: playwright-official
+    transport: http
+    command: ""
+    args: []
+    url: http://browser:8931/mcp
+    enabled: false
+    tool_name: ""
+    timeout_seconds: 60.0
+    permission_scopes: [browser_control]
+    allowed_tools:
+      - browser_navigate
+      - browser_snapshot
+      - browser_click
+      - browser_type
+      - browser_press_key
+      - browser_wait_for
+
+# ─────────────────────────────────────────────────────────────
+# MinerU 文档解析 provider（默认关闭）
+# agent_lite：免 token，适合把小 PDF 转为 Agent 友好 Markdown。
+# standard：需要 MinerU API 管理页创建的 Bearer token，不使用 AK/SK。
+# ─────────────────────────────────────────────────────────────
+mineru:
+  enabled: false
+  base_url: https://mineru.net
+  mode: agent_lite
+  api_token: ${MINERU_API_TOKEN}
+  language: en
+  page_range:
+  enable_table: true
+  enable_formula: true
+  is_ocr: false
+  poll_interval_seconds: 2.0
+  max_wait_seconds: 120.0
+
+# ─────────────────────────────────────────────────────────────
+# DeepLX 基础翻译
+# self_hosted 可继续使用环境变量；local Core 保存时会把 key 迁入系统凭据库，
+# YAML 只留下非敏感 credential reference。
+# ─────────────────────────────────────────────────────────────
+deeplx:
+  base_url: https://api.deeplx.org
+  api_key: ${DEEPLX_API_KEY}
+  timeout_seconds: 30.0
+
+# ─────────────────────────────────────────────────────────────
+# 单语中文 PDF 导出 sidecar（默认关闭）
+# 地址和 sidecar token 分别从 PEINIDU_PDF_EXPORT_SIDECAR_URL 与
+# PEINIDU_PDF_EXPORT_SIDECAR_TOKEN 读取，不写入 config.yaml。
+# 只有完成 AGPL 来源、版本和第三方声明披露后才能同时打开下面两项。
+# ─────────────────────────────────────────────────────────────
+pdf_export:
+  enabled: false
+  license_disclosure_complete: false
+  wrapper_version: 1.0.1
+  sidecar_name: PDFMathTranslate-next
+  sidecar_version: v2.9.0
+  sidecar_commit: f8dffcf4c3a33b254391d43514439b975ce8d966
+  sidecar_image_digest: sha256:c737d5342c9220a56026733f3a42182581bb4d8e5052b133e3326babffea109a
+  source_code_url: https://github.com/PDFMathTranslate-next/PDFMathTranslate-next/tree/v2.9.0
+  modified_source_url: /pdf-exports/wrapper-source
+  license_name: AGPL-3.0
+  target_language: zh-CN
+  max_source_bytes: 52428800
+  max_pages: 200
+  max_output_bytes: 314572800
+  max_concurrent_runs: 1
+  timeout_seconds: 1800.0
+  poll_interval_seconds: 2.0
+
+# ─────────────────────────────────────────────────────────────
+# LiteLLM 翻译兼容 Prompt
+# 网页论文默认使用 DeepLX，不读取此项。仅在环境变量显式切回
+# PEINIDU_TRANSLATION_PROVIDER=litellm 时使用三段上下文 prompt。
+# ─────────────────────────────────────────────────────────────
+translation_prompt: ""
+
+# ─────────────────────────────────────────────────────────────
+# 运行参数
+# ─────────────────────────────────────────────────────────────
+translation_concurrency: 5   # asyncio 并发翻译上限
+agent_concurrency: 2          # Agent LLM 调用并发上限，避免多用户同时分析时打满 provider
+request_timeout: 120.0        # LLM 请求超时（秒）— 强推理模型较慢，给足时间

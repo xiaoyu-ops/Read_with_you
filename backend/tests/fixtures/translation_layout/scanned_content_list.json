@@ -1,0 +1,14 @@
+[
+  {
+    "type": "text",
+    "text": "OCR text from scanned page one.",
+    "page_idx": 0,
+    "bbox": [131, 139, 869, 290]
+  },
+  {
+    "type": "text",
+    "text": "OCR text from scanned page two.",
+    "page_idx": 1,
+    "bbox": [131, 152, 869, 328]
+  }
+]
