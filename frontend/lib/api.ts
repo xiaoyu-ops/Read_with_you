@@ -536,6 +536,13 @@ export interface AgentRunResultData {
   evidence: Array<Record<string, unknown>>;
   limits: string[];
   next_questions: string[];
+  actions?: AgentRunAction[];
+}
+
+export interface AgentRunAction {
+  kind: "open_literature_map";
+  label: string;
+  href: string;
 }
 
 export interface AgentRunItem {

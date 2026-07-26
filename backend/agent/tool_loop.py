@@ -136,7 +136,12 @@ class ToolLoopResult:
     limits: tuple[str, ...] = field(default_factory=tuple)
 
 
-ALLOWED_LOCAL_TOOLS = {"local.external_search", "local.web_search", "local.web_fetch"}
+ALLOWED_LOCAL_TOOLS = {
+    "local.literature_map",
+    "local.external_search",
+    "local.web_search",
+    "local.web_fetch",
+}
 
 
 def _text(value: Any, limit: int = 240) -> str:
@@ -406,7 +411,7 @@ def _mcp_route_score(spec, haystack: str) -> int:
     )
     if "github" in server_text:
         score += sum(3 for term in github_terms if term in haystack)
-    if any(term in server_text for term in ("paper", "search", "arxiv", "scholar")):
+    if any(term in server_text for term in ("paper", "arxiv", "scholar")):
         score += sum(3 for term in paper_terms if term in haystack)
     if spec.server_name and spec.server_name.casefold() in haystack:
         score += 2
@@ -436,6 +441,8 @@ def _label_for_evidence(tool_name: str, evidence: Mapping[str, Any] | None = Non
         return "学术检索"
     if kind == "semantic_scholar_author_result":
         return "作者信息"
+    if kind == "literature_map_representative_paper":
+        return "论文图谱"
     if kind == "mcp_tool_result":
         return "MCP 工具"
     if kind == "mcp_tool_error":
@@ -450,6 +457,8 @@ def _label_for_evidence(tool_name: str, evidence: Mapping[str, Any] | None = Non
         return "读取网页"
     if tool_name == "local.external_search":
         return "学术检索"
+    if tool_name == "local.literature_map":
+        return "论文图谱"
     if tool_name.startswith("mcp:") or tool_name == "mock.mcp_tool":
         return "MCP 工具"
     return tool_name

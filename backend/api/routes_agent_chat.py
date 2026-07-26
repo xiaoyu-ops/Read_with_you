@@ -134,16 +134,38 @@ class AgentRunItem(BaseModel):
     completed_at: str | None = None
 
 
+def _result_actions(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    actions: list[dict] = []
+    for item in value[:4]:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        label = _short_text(item.get("label"), 80)
+        href = str(item.get("href") or "").strip()
+        if kind != "open_literature_map" or not label:
+            continue
+        if len(href) > 500 or not re.fullmatch(
+            r"/literature-map/[A-Za-z0-9%._:-]+",
+            href,
+        ):
+            continue
+        actions.append({"kind": kind, "label": label, "href": href})
+    return actions
+
+
 def _result_data(
     summary: object = "",
     *,
     evidence: object = None,
     limits: object = None,
     next_questions: object = None,
+    actions: object = None,
 ) -> dict:
     """Keep Run results readable by old clients and structurally stable for new ones."""
 
-    return {
+    data = {
         "summary": _short_text(summary, 2_000),
         "evidence": [dict(item) for item in evidence if isinstance(item, dict)][:12]
         if isinstance(evidence, list)
@@ -157,6 +179,10 @@ def _result_data(
         if isinstance(next_questions, list)
         else [],
     }
+    normalized_actions = _result_actions(actions)
+    if normalized_actions:
+        data["actions"] = normalized_actions
+    return data
 
 
 def _normalize_result_data(value: object, fallback: str = "") -> dict:
@@ -167,6 +193,7 @@ def _normalize_result_data(value: object, fallback: str = "") -> dict:
         evidence=value.get("evidence"),
         limits=value.get("limits"),
         next_questions=value.get("next_questions"),
+        actions=value.get("actions"),
     )
 
 
@@ -351,6 +378,25 @@ RELATED_PAPER_HINTS = (
     "related papers",
     "similar paper",
     "similar papers",
+)
+
+LITERATURE_MAP_HINTS = (
+    "论文图谱",
+    "文献图谱",
+    "论文关系",
+    "文献关系",
+    "关系图谱",
+    "引用图谱",
+    "引用脉络",
+    "论文脉络",
+    "研究脉络",
+    "对应关系",
+    "connected papers",
+    "connected paper",
+    "paper connect",
+    "paper graph",
+    "literature map",
+    "citation graph",
 )
 
 TITLE_QUERY_STOPWORDS = {
@@ -887,6 +933,11 @@ def _is_related_paper_lookup(message: str) -> bool:
     return any(hint in text for hint in RELATED_PAPER_HINTS)
 
 
+def _is_literature_map_lookup(message: str) -> bool:
+    text = message.casefold()
+    return any(hint in text for hint in LITERATURE_MAP_HINTS)
+
+
 def _title_search_terms(title: str) -> list[str]:
     # 冒号前通常是方法名/缩写，后半句更适合做宽检索。
     title_part = title.split(":", 1)[1] if ":" in title else title
@@ -911,6 +962,7 @@ def _related_paper_search_query(paper_title: str, user_message: str) -> str:
 TOOL_PLAN_TIMEOUT_SECONDS = 8.0
 
 TOOL_PLAN_NATIVE_NAME_MAP = {
+    "local_literature_map": "local.literature_map",
     "local_external_search": "local.external_search",
     "local_web_search": "local.web_search",
     "local_web_fetch": "local.web_fetch",
@@ -964,6 +1016,28 @@ TOOL_PLAN_NATIVE_TOOLS = [
                     "reason": {"type": "string", "description": "为什么需要调用该工具。"},
                 },
                 "required": ["search_query", "reason"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "local_literature_map",
+            "description": (
+                "构建当前论文的关系图谱、引用脉络与先行/后续工作。"
+                "只有用户明确要求论文图谱、论文关系、脉络或 Connected Papers 时使用；"
+                "普通推荐相关论文继续使用 local_external_search。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "paper_ref": {
+                        "type": "string",
+                        "description": "可选 S2 paper ID 或 ARXIV:<id>；默认使用当前论文。",
+                    },
+                    "reason": {"type": "string", "description": "为什么需要构建图谱。"},
+                },
+                "required": ["reason"],
             },
         },
     },
@@ -1035,7 +1109,7 @@ LOCAL_AGENT_TASK_TOOLS = [
         "type": "function",
         "function": {
             "name": "local_reproducibility_deep_dive",
-            "description": "深挖论文的代码、数据集、超参数和硬件复现证据。会调用 LiteLLM 分析，因此需要 long_task 确认。",
+            "description": "用户要求系统检查当前论文的代码、数据集、超参数和硬件复现条件时必须调用；不要改用外部检索。会调用 LiteLLM 分析，因此需要 long_task 确认。",
             "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}},
         },
     },
@@ -1051,7 +1125,7 @@ LOCAL_AGENT_TASK_TOOLS = [
         "type": "function",
         "function": {
             "name": "local_annotation_questions",
-            "description": "把当前论文的用户标注整理成可继续追问的问题。只读本地标注和使用 LiteLLM 整理，不需要外部权限。",
+            "description": "用户要求把当前论文的标注整理成后续问题清单时必须调用；不要改用 notes_search。只读本地标注和使用 LiteLLM 整理，不需要外部权限。",
             "parameters": {"type": "object", "properties": {"reason": {"type": "string"}}},
         },
     },
@@ -1183,6 +1257,7 @@ TOOL_PLAN_SYSTEM_PROMPT = (
     "你是 Hermes 风格的后端请求计划器。你的任务不是回答用户，而是判断 Pet 下一步应该"
     "直接回答、请求权限后调用工具，还是交给后台任务。输出必须是 JSON object。\n\n"
     "可用工具：\n"
+    "- local.literature_map: 构建论文关系图谱、引用脉络和先行/后续工作；只用于明确的图谱/脉络/Connected Papers 意图。\n"
     "- local.external_search: 学术检索，查 arXiv / Semantic Scholar，适合相关论文、作者、引用、论文代码线索。\n"
     "- local.web_search: 普通网页搜索，适合 GitHub、官网、博客、新闻、复现页面。\n"
     "- local.web_fetch: 读取用户给出的 URL。\n"
@@ -1192,21 +1267,23 @@ TOOL_PLAN_SYSTEM_PROMPT = (
     "- 同一个 tool_calls 计划只能使用一个 permission_scope：external_search 工具不能和 mcp_tool 混在一起。\n"
     "- 用户给了具体 URL 时用 local.web_fetch；没有 URL 时不要编造 fetch URL，可先 local.web_search。\n"
     "- 需要“查相关论文 + 找代码/复现仓库”时，可在 external_search scope 下规划 local.external_search 后接 local.web_search。\n"
+    "- 用户明确要求论文图谱、论文关系、引用脉络、Connected Papers 时只规划 local.literature_map；"
+    "普通“推荐几篇相关论文”仍使用 local.external_search。\n"
     "- 不确定时选择最少步骤，优先 1-2 步；不要为了显得复杂而加工具。\n\n"
     "权限边界：\n"
     "- 任何外部联网检索都必须 permission_scope=external_search。\n"
     "- 明确使用 MCP/工具服务时 permission_scope=mcp_tool。\n"
     "- 纯论文内容问答 action=chat，不要请求权限。\n"
-    "- 查相似论文/相关论文/related papers 必须 action=tool_request, tool_name=local.external_search, "
+    "- 查相似论文/相关论文/related papers 且没有图谱意图时必须 action=tool_request, tool_name=local.external_search, "
     "query_mode=related_papers，并说明需要联网查相关论文。\n\n"
     "JSON schema:\n"
     "{"
     '"action":"chat|tool_request|background_task",'
     '"permission_scope":"external_search|mcp_tool|long_task|null",'
-    '"tool_name":"local.external_search|local.web_search|local.web_fetch|mcp_tool|null",'
-    '"query_mode":"paper_lookup|related_papers|web_search|web_fetch|mcp_tool|null",'
+    '"tool_name":"local.literature_map|local.external_search|local.web_search|local.web_fetch|mcp_tool|null",'
+    '"query_mode":"literature_map|paper_lookup|related_papers|web_search|web_fetch|mcp_tool|null",'
     '"search_query":"给工具用的短查询，可为空",'
-    '"tool_calls":[{"tool_name":"local.external_search|local.web_search|local.web_fetch|mcp_tool","arguments":{},"reason":"为什么调用，按执行顺序排列"}],'
+    '"tool_calls":[{"tool_name":"local.literature_map|local.external_search|local.web_search|local.web_fetch|mcp_tool","arguments":{},"reason":"为什么调用，按执行顺序排列"}],'
     '"user_facing_reason":"给用户看的权限理由，不超过60字",'
     '"confidence":"high|medium|low"'
     "}\n"
@@ -1252,14 +1329,26 @@ def _normalize_tool_plan(data: dict, message: str, context: dict) -> dict | None
     tool_name = str(tool_name_raw).strip() if tool_name_raw is not None else ""
     if tool_name in ("", "none", "null", "None"):
         tool_name = ""
-    allowed_tools = {"local.external_search", "local.web_search", "local.web_fetch", "mcp_tool"}
+    allowed_tools = {
+        "local.literature_map",
+        "local.external_search",
+        "local.web_search",
+        "local.web_fetch",
+        "mcp_tool",
+    }
     if tool_name and tool_name not in allowed_tools:
         return None
     query_mode_raw = data.get("query_mode")
     query_mode = str(query_mode_raw).strip() if query_mode_raw is not None else ""
     if query_mode in ("", "none", "null", "None"):
         query_mode = ""
-    if _is_related_paper_lookup(message):
+    literature_map_intent = _is_literature_map_lookup(message)
+    if literature_map_intent:
+        action = "tool_request"
+        scope = "external_search"
+        tool_name = "local.literature_map"
+        query_mode = "literature_map"
+    elif _is_related_paper_lookup(message):
         action = "tool_request"
         scope = "external_search"
         tool_name = "local.external_search"
@@ -1313,6 +1402,14 @@ def _normalize_tool_plan(data: dict, message: str, context: dict) -> dict | None
                     "reason": _short_text(raw_call.get("reason"), 160),
                 }
             )
+    if literature_map_intent:
+        tool_calls = [
+            {
+                "tool_name": "local.literature_map",
+                "arguments": {},
+                "reason": "构建当前论文的关系图谱与引用脉络",
+            }
+        ]
     if action == "tool_request" and raw_tool_calls and not tool_calls:
         return None
     if tool_calls:
@@ -1365,6 +1462,9 @@ def _normalize_tool_plan(data: dict, message: str, context: dict) -> dict | None
 
 
 def _native_tool_call_arguments(tool_name: str, raw_arguments: dict) -> dict:
+    if tool_name == "local.literature_map":
+        paper_ref = _short_text(raw_arguments.get("paper_ref"), 160)
+        return {"paper_ref": paper_ref} if paper_ref else {}
     if tool_name == "local.web_search":
         search_query = _short_text(raw_arguments.get("search_query") or raw_arguments.get("query"), 220)
         arguments = {"query": search_query} if search_query else {}
@@ -1480,7 +1580,7 @@ def _should_use_tool_planner(message: str, context: dict) -> bool:
     if _is_mcp_config_request(message) or _is_mcp_status_question(message):
         return False
     text = message.casefold()
-    if _is_related_paper_lookup(message):
+    if _is_literature_map_lookup(message) or _is_related_paper_lookup(message):
         return True
     if re.search(r"https?://", text):
         return True
@@ -1564,7 +1664,9 @@ def _permission_request(message: str, context: dict) -> dict | None:
     scope = None
     if _is_mcp_status_question(message):
         return None
-    if any(keyword in text for keyword in ("mcp", "msp", "工具", "tool", "调用工具")):
+    if _is_literature_map_lookup(message):
+        scope = "external_search"
+    elif any(keyword in text for keyword in ("mcp", "msp", "工具", "tool", "调用工具")):
         scope = "mcp_tool"
     elif any(
         keyword in text
@@ -1668,6 +1770,11 @@ def _permission_confirmation_message(permission: dict) -> str:
     if reason:
         suffix = "你确认后，我再执行并把依据整理回来。"
         return f"可以做。{reason}{suffix}"
+    if scope == "external_search" and _is_literature_map_lookup(original_message):
+        return (
+            "可以做。我需要联网到 Semantic Scholar 构建论文关系图谱；"
+            "你确认后，我会整理代表论文、引用脉络和先行/后续工作。"
+        )
     if scope == "external_search" and _is_related_paper_lookup(original_message):
         return (
             "可以做。我需要联网到 arXiv / Semantic Scholar 查相似论文；"
@@ -3288,6 +3395,9 @@ def _tool_name_for_scope(
     user_message: str = "",
     context: dict | None = None,
 ) -> str:
+    if scope == "external_search" and _is_literature_map_lookup(user_message):
+        if registry is None or registry.get("local.literature_map") is not None:
+            return "local.literature_map"
     if registry is None:
         if scope == "external_search":
             return "local.web_fetch" if _should_use_web_fetch(user_message) else (
@@ -4128,6 +4238,9 @@ async def _finish_agent_run(arxiv_id: str, run_id: str, task_id: int, on_tool_ev
 AGENT_LOOP_SYSTEM_SUFFIX = (
     "\n\n你现在可以直接回答，也可以按需调用已提供的工具。"
     "只有确实需要外部证据时才调用工具；不要声称尚未执行的工具结果。"
+    "用户明确要求论文图谱、论文关系、引用脉络或 Connected Papers 时调用 "
+    "local_literature_map；普通“推荐几篇相关论文”继续调用 local_external_search，"
+    "不要把两种产物混为一谈。"
     "当用户明确表达以后都要遵守的阅读偏好、纠正或判断标准时，调用 local_memory_save；"
     "临时问题、论文事实和一次性任务不得保存为长期记忆，未执行工具前不得声称已经记住。"
     "只有用户明确询问以前讨论过什么、在哪篇论文聊过某个主题时，才调用 local_session_search；"
@@ -4142,8 +4255,14 @@ AGENT_LOOP_SYSTEM_SUFFIX = (
     "用户要求帮忙记下内容时只能生成待确认草稿，不能直接修改笔记。"
     "当前论文的系统方法拆解优先调用 local_method_explanation；当前论文的复现条件深挖优先调用 "
     "local_reproducibility_deep_dive；完整四 Agent 报告必须调用 local_four_agent_analysis。"
+    "只要用户要求系统检查当前论文的数据、代码、超参数和硬件复现条件，就必须调用 "
+    "local_reproducibility_deep_dive，除非用户明确要求核验最新外部仓库状态，否则禁止改用外部检索。"
+    "用户要求把当前论文的标注整理成问题清单时必须调用 local_annotation_questions；"
+    "local_notes_search 只用于检索用户已经写下的笔记，不能代替标注问题整理。"
     "这三个本地专业工具不得被 external_search 代替；只有用户明确要求最新网页、仓库状态或论文外部证据时"
     "才另外调用外部工具。"
+    "如果用户说“比较一下”“做深一点”“处理这些内容”但没有给出明确对象、范围或期望产物，"
+    "不要猜测、不要调用工具；只追问一次，请用户明确缺失信息。"
     "工具失败后最多选择一个不同且合理的替代路径；替代仍失败时必须诚实结束并说明限制，"
     "不得继续轮换工具。"
 )
@@ -4333,6 +4452,7 @@ def _agent_evidence_source(item: dict, metadata: dict) -> dict:
         "web_fetch_result",
         "external_paper_search_result",
         "semantic_scholar_author_result",
+        "literature_map_representative_paper",
         "mcp_tool_result",
     }:
         enriched["source_type"] = "external_web"

@@ -64,6 +64,20 @@ export function getMessageLimits(message: AgentChatMessage): string[] {
   return limits.filter((item): item is string => typeof item === "string" && Boolean(item.trim()));
 }
 
+export function getMessageActions(
+  message: AgentChatMessage,
+): NonNullable<AgentRunResultData["actions"]> {
+  const actions = message.meta?.result_data?.actions;
+  if (!Array.isArray(actions)) return [];
+  return actions.filter((item) => (
+    item?.kind === "open_literature_map"
+    && typeof item.label === "string"
+    && Boolean(item.label.trim())
+    && typeof item.href === "string"
+    && /^\/literature-map\/[A-Za-z0-9%._:-]+$/.test(item.href)
+  )).slice(0, 4);
+}
+
 export function getPermissionRequest(
   message: AgentChatMessage,
 ): AgentPermissionRequest | null {
@@ -413,6 +427,7 @@ export function AgentConversationMessages({
         const permission = getPermissionRequest(message);
         const mcpDraft = getMcpConfigDraft(message);
         const trace = getToolTrace(message);
+        const actions = getMessageActions(message);
         return (
           <div
             key={message.id}
@@ -435,6 +450,19 @@ export function AgentConversationMessages({
                   evidence={getMessageEvidence(message)}
                   onNavigateEvidence={onNavigateEvidence}
                 />
+              )}
+              {message.role === "assistant" && actions.length > 0 && (
+                <div className="pet-result-actions mt-2 flex flex-wrap gap-2">
+                  {actions.map((action) => (
+                    <a
+                      key={`${action.kind}:${action.href}`}
+                      href={action.href}
+                      className="rounded-md bg-[hsl(var(--reader-accent))] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--focus-ring))]"
+                    >
+                      {action.label}
+                    </a>
+                  ))}
+                </div>
               )}
               {message.role === "assistant" && trace && (
                 <AgentToolTraceTrail trace={trace} />

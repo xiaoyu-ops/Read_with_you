@@ -67,6 +67,17 @@ test("workspace preserves S2-only boundaries and arXiv product actions", () => {
   assert.match(pet, /initialOpen/);
 });
 
+test("Pet and Agent share one allowlisted internal map action renderer", () => {
+  const api = read("lib/api.ts");
+  const renderer = read("components/agent/AgentConversationView.tsx");
+
+  assert.match(api, /kind: "open_literature_map"/);
+  assert.match(renderer, /getMessageActions/);
+  assert.match(renderer, /\^\\\/literature-map\\\//);
+  assert.match(renderer, /pet-result-actions/);
+  assert.match(renderer, /\{action\.label\}/);
+});
+
 test("literature map uses three columns and non-modal responsive panels", () => {
   const styles = read("app/globals.css");
 

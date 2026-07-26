@@ -3,6 +3,7 @@
 import os
 
 from .external_search import register_external_search_tool
+from .literature_map import register_literature_map_tool
 from .mcp import register_mcp_servers
 from .web_search import register_web_search_tool
 from .browser_control import register_browser_control_tool
@@ -35,6 +36,7 @@ def build_agent_tool_registry() -> ToolRegistry:
 
     registry = build_mock_tool_registry()
     register_external_search_tool(registry)
+    register_literature_map_tool(registry)
     register_web_search_tool(registry)
     if local_browser_control_enabled():
         register_browser_control_tool(registry)
@@ -54,6 +56,7 @@ __all__ = [
     "build_mcp_server_specs",
     "local_browser_control_enabled",
     "register_external_search_tool",
+    "register_literature_map_tool",
     "register_mcp_servers",
     "register_web_search_tool",
     "register_browser_control_tool",

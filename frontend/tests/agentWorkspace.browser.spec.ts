@@ -55,6 +55,13 @@ const initialMessages = [
         ],
         limits: [],
         next_questions: [],
+        actions: [
+          {
+            kind: "open_literature_map",
+            label: "打开论文图谱",
+            href: `/literature-map/ARXIV%3A${PAPER_ID}`,
+          },
+        ],
       },
     },
   },
@@ -233,6 +240,10 @@ test("research workspace streams conversation and adapts at four target widths",
   await expect(
     page.getByRole("button", { name: "大核注意力是核心方法。" }).first(),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "打开论文图谱" })).toHaveAttribute(
+    "href",
+    `/literature-map/ARXIV%3A${PAPER_ID}`,
+  );
   await assertNoHorizontalOverflow(page);
 
   const leftSeparator = page.getByRole("separator", { name: "调整会话栏宽度" });

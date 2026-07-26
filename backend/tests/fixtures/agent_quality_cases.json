@@ -133,6 +133,30 @@
     "expected_tools": ["local_external_search"]
   },
   {
+    "id": "literature-map-01",
+    "category": "external_research",
+    "message": "看一下这篇论文的关系图谱和引用脉络。",
+    "expected_action": "tool",
+    "expected_tools": ["local_literature_map"],
+    "forbidden_tools": ["local_external_search"]
+  },
+  {
+    "id": "literature-map-02",
+    "category": "external_research",
+    "message": "用 Connected Papers 的方式展示这篇文章的对应关系。",
+    "expected_action": "tool",
+    "expected_tools": ["local_literature_map"],
+    "forbidden_tools": ["local_external_search"]
+  },
+  {
+    "id": "related-list-control-01",
+    "category": "external_research",
+    "message": "普通推荐五篇相关论文即可，不需要画图。",
+    "expected_action": "tool",
+    "expected_tools": ["local_external_search"],
+    "forbidden_tools": ["local_literature_map"]
+  },
+  {
     "id": "citation-search-01",
     "category": "external_research",
     "message": "查一下这篇论文现在的引用次数。",
