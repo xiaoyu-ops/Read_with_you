@@ -72,26 +72,29 @@ a:focus-visible,button:focus-visible,input:focus-visible {
 }
 .home-hero h1 { max-width:780px }
 .home-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:34px }
-.core-summary {
+.usage-summary {
   padding:24px 26px 28px; border:1px solid var(--line); background:var(--surface);
 }
-.core-summary-label {
+.usage-summary-label {
   margin:0 0 14px; color:var(--blue);
   font:650 12px/1.4 ui-monospace,monospace; letter-spacing:.08em;
 }
-.core-summary strong {
+.usage-summary strong {
   display:block; margin-bottom:20px; font-family:ui-serif,"Songti SC",serif;
   font-size:25px; font-weight:600;
 }
-.core-summary dl { margin:0 }
-.core-summary dl div {
+.usage-summary dl { margin:0 }
+.usage-summary dl div {
   display:grid; grid-template-columns:90px minmax(0,1fr); gap:14px;
   padding:12px 0; border-top:1px solid var(--line);
 }
-.core-summary dt { color:var(--muted) }
-.core-summary dd { margin:0; text-align:right }
-.core-summary[data-state="ready"] .core-summary-label { color:oklch(52% .11 150) }
-.core-summary[data-state="missing"] .core-summary-label { color:var(--amber) }
+.usage-summary dt { color:var(--muted) }
+.usage-summary dd {
+  margin:0; text-align:right; font-weight:700; font-variant-numeric:tabular-nums;
+}
+.usage-summary small {
+  display:block; margin-top:16px; color:var(--muted); font-size:12px; line-height:1.55;
+}
 .core-entry {
   display:grid; grid-template-columns:minmax(180px,.45fr) minmax(0,1.55fr);
   gap:72px; margin-top:72px; padding:32px 0 36px;
@@ -302,8 +305,11 @@ h1 {
   .map-list { display:none }
 }
 @media(max-width:760px) {
-  .site-header { min-height:62px; padding:0 18px }
-  .site-nav { gap:14px }
+  .site-header { min-height:62px; gap:12px; padding:0 18px }
+  .brand { flex:none; gap:6px; white-space:nowrap; font-size:18px }
+  .brand-mascot { height:29px }
+  .site-nav { gap:10px; min-width:0; font-size:12px; white-space:nowrap }
+  .site-nav a { flex:none }
   .portal-main { padding:48px 18px 64px }
   .home-hero { grid-template-columns:1fr; gap:36px }
   .core-entry { grid-template-columns:1fr; gap:18px; margin-top:52px }
@@ -388,20 +394,37 @@ CORE_STATUS_SCRIPT = r"""
 <script>
 (() => {
   const status = document.getElementById("core-state");
-  const summary = document.getElementById("core-summary");
-  const summaryLabel = document.getElementById("core-summary-label");
-  const summaryTitle = document.getElementById("core-summary-title");
   const open = document.getElementById("open-core");
   const install = document.getElementById("install-core");
   const retry = document.getElementById("retry-core");
-  if (!status || !summary || !summaryLabel || !summaryTitle || !open || !install || !retry) return;
+  const visits = document.getElementById("total-portal-visits");
+  const starts = document.getElementById("total-core-starts");
+  const readers = document.getElementById("total-reader-opens");
+  const usageFields = [visits, starts, readers].filter(Boolean);
+  const formatCount = value => new Intl.NumberFormat("zh-CN").format(Number(value) || 0);
+
+  const loadUsage = async () => {
+    try {
+      if (typeof window.peiniduRecordUsage === "function") {
+        await window.peiniduRecordUsage("portal_visited");
+      }
+      const response = await fetch("/api/portal/stats", { cache:"no-store" });
+      if (!response.ok) throw new Error("stats_unavailable");
+      const data = await response.json();
+      if (visits) visits.textContent = formatCount(data.total_portal_visits);
+      if (starts) starts.textContent = formatCount(data.total_core_starts);
+      if (readers) readers.textContent = formatCount(data.total_reader_opens);
+    } catch {
+      usageFields.forEach(field => { field.textContent = "暂不可用"; });
+    }
+  };
+  loadUsage();
+
+  if (!status || !open || !install || !retry) return;
 
   const showMissing = () => {
     status.classList.remove("is-ready");
     status.querySelector("span:last-child").textContent = "未检测到正在运行的本地 Core";
-    summary.dataset.state = "missing";
-    summaryLabel.textContent = "可能尚未安装，也可能只是未启动";
-    summaryTitle.textContent = "先启动 Core";
     open.hidden = false;
     open.textContent = "尝试打开本地工作台";
     open.classList.remove("primary");
@@ -413,9 +436,6 @@ CORE_STATUS_SCRIPT = r"""
   const showReady = () => {
     status.classList.add("is-ready");
     status.querySelector("span:last-child").textContent = "已检测到本地 Core";
-    summary.dataset.state = "ready";
-    summaryLabel.textContent = "本地 Core 已就绪";
-    summaryTitle.textContent = "可以继续阅读";
     open.hidden = false;
     open.textContent = "打开本地工作台";
     open.classList.add("primary");
@@ -428,9 +448,6 @@ CORE_STATUS_SCRIPT = r"""
   const showChecking = () => {
     status.classList.remove("is-ready");
     status.querySelector("span:last-child").textContent = "正在检查本地 Core";
-    summary.dataset.state = "checking";
-    summaryLabel.textContent = "正在检查这台电脑";
-    summaryTitle.textContent = "连接本地 Core…";
     retry.disabled = true;
     retry.textContent = "检查中…";
   };

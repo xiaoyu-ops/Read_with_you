@@ -76,7 +76,14 @@ class PublicPortalTest(unittest.TestCase):
         mascot = self.client.get("/api/portal/mascot.png")
 
         self.assertEqual(home.status_code, 200)
-        self.assertIn("网页是入口，论文仍在你的电脑里", home.text)
+        self.assertIn("读好论文，沉淀基础", home.text)
+        self.assertIn("让 Pet 帮你核对方法、数据、超参数和证据", home.text)
+        self.assertIn("匿名使用概况", home.text)
+        self.assertIn('id="total-portal-visits"', home.text)
+        self.assertIn('id="total-core-starts"', home.text)
+        self.assertIn('id="total-reader-opens"', home.text)
+        self.assertIn("累计匿名次数，不代表唯一用户人数", home.text)
+        self.assertNotIn('id="core-summary"', home.text)
         self.assertIn('id="product-demo"', home.text)
         self.assertIn("产品快速体验", home.text)
         self.assertIn("Attention Is All You Need", home.text)
@@ -286,6 +293,20 @@ class PublicPortalTest(unittest.TestCase):
                 app_version="portal",
             ),
         )
+        old_date = (datetime.now(timezone.utc).date() - timedelta(days=400)).isoformat()
+        with closing(sqlite3.connect(portal_store.database_path())) as connection:
+            with connection:
+                connection.executemany(
+                    """
+                    INSERT INTO daily_totals (event_date, event, platform, count)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    [
+                        (old_date, "portal_visited", "web", 4),
+                        (old_date, "core_started", "macos", 3),
+                        (old_date, "reader_opened", "macos", 2),
+                    ],
+                )
         stats = self.client.get("/api/portal/stats").json()
 
         self.assertEqual(first.json(), {"status": "recorded"})
@@ -296,6 +317,9 @@ class PublicPortalTest(unittest.TestCase):
         self.assertEqual(stats["portal_active_today"], 1)
         self.assertEqual(stats["core_active_today"], 1)
         self.assertEqual(stats["readers_today"], 1)
+        self.assertEqual(stats["total_portal_visits"], 5)
+        self.assertEqual(stats["total_core_starts"], 4)
+        self.assertEqual(stats["total_reader_opens"], 3)
         self.assertFalse(stats["privacy"]["cross_day_identifier"])
         self.assertFalse(stats["privacy"]["content_collected"])
 

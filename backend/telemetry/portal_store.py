@@ -132,6 +132,13 @@ def aggregate_stats(*, today: date | None = None) -> dict[str, Any]:
             """,
             (start,),
         ).fetchall()
+        totals = connection.execute(
+            """
+            SELECT event, COALESCE(SUM(count), 0) AS count
+            FROM daily_totals
+            GROUP BY event
+            """
+        ).fetchall()
         downloads = connection.execute(
             "SELECT COALESCE(SUM(count), 0) AS count FROM download_totals"
         ).fetchone()["count"]
@@ -141,6 +148,7 @@ def aggregate_stats(*, today: date | None = None) -> dict[str, Any]:
     today_values = daily.get(current.isoformat(), {})
     portal_active = today_values.get("portal_visited", 0)
     core_active = today_values.get("core_started", 0)
+    total_values = {row["event"]: row["count"] for row in totals}
     return {
         "date": current.isoformat(),
         "active_today": portal_active + core_active,
@@ -149,6 +157,9 @@ def aggregate_stats(*, today: date | None = None) -> dict[str, Any]:
         "searchers_today": today_values.get("search_submitted", 0),
         "maps_today": today_values.get("map_opened", 0),
         "readers_today": today_values.get("reader_opened", 0),
+        "total_portal_visits": total_values.get("portal_visited", 0),
+        "total_core_starts": total_values.get("core_started", 0),
+        "total_reader_opens": total_values.get("reader_opened", 0),
         "total_downloads": downloads,
         "daily": [
             {"date": day, **counts}

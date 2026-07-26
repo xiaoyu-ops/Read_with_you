@@ -85,7 +85,7 @@ def _page(*, title: str, body: str) -> HTMLResponse:
   </header>
   {ANALYTICS_SCRIPT}
   {body}
-  <footer class="site-footer">陪你读 · 网页是入口，论文仍在你的电脑里。</footer>
+  <footer class="site-footer">陪你读 · 读好论文，沉淀基础。</footer>
 </body>
 </html>"""
     return HTMLResponse(html, headers=_PORTAL_HEADERS)
@@ -93,13 +93,13 @@ def _page(*, title: str, body: str) -> HTMLResponse:
 
 async def portal_home() -> HTMLResponse:
     return _page(
-        title="陪你读 — 本地优先的论文阅读工作台",
+        title="陪你读 — 读好论文，沉淀基础",
         body=f"""<main id="main" class="portal-main">
   <div class="home-hero">
     <div>
       <p class="eyebrow">Local-first paper workspace</p>
-      <h1>网页是入口，论文仍在你的电脑里。</h1>
-      <p class="lede">启动本地 Core 后，继续在浏览器里阅读原始 PDF、划选翻译、写 Markdown 笔记并和 Pet 讨论。完整能力不依赖网站账号。</p>
+      <h1>读好论文，沉淀基础。</h1>
+      <p class="lede">在原始 PDF 上划选翻译、记录判断，让 Pet 帮你核对方法、数据、超参数和证据。论文与笔记留在本机。</p>
       <div class="home-actions">
         <a id="open-core" class="button secondary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">尝试打开本地工作台</a>
         <a id="install-core" class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>
@@ -107,14 +107,15 @@ async def portal_home() -> HTMLResponse:
       <p class="status">本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
       <a class="demo-jump" href="#product-demo">看看精读与证据分析怎么工作 ↓</a>
     </div>
-    <aside id="core-summary" class="core-summary" data-state="checking" aria-live="polite">
-      <p id="core-summary-label" class="core-summary-label">正在检查本机</p>
-      <strong id="core-summary-title">连接本地 Core…</strong>
+    <aside class="usage-summary" aria-labelledby="usage-summary-title">
+      <p class="usage-summary-label">匿名使用概况</p>
+      <strong id="usage-summary-title">陪你读正在被使用</strong>
       <dl>
-        <div><dt>公网</dt><dd>项目入口与安装说明</dd></div>
-        <div><dt>本地</dt><dd>PDF、翻译、笔记与 Pet</dd></div>
-        <div><dt>账号</dt><dd>不需要网站账号</dd></div>
+        <div><dt>累计访问</dt><dd id="total-portal-visits" aria-live="polite">读取中…</dd></div>
+        <div><dt>Core 启动</dt><dd id="total-core-starts" aria-live="polite">读取中…</dd></div>
+        <div><dt>开始阅读</dt><dd id="total-reader-opens" aria-live="polite">读取中…</dd></div>
       </dl>
+      <small>累计匿名次数，不代表唯一用户人数；不包含论文、笔记、问题或回答。</small>
     </aside>
   </div>
   {demo_markup()}
@@ -133,9 +134,8 @@ async def portal_home() -> HTMLResponse:
   <div class="home-sections">
     <section><h2>仍然是网页体验</h2><p>工作台运行在本机浏览器中，原始 PDF 仍是阅读主面。</p></section>
     <section><h2>研究资料留在本机</h2><p>论文、笔记、问题、回答与 Key 不成为公网账号资产。</p></section>
-    <section><h2>无需注册账号</h2><p>安装和更新流程以 GitHub 项目说明为准，不再展示虚假的安装包状态。</p></section>
+    <section><h2>无需注册账号</h2><p>不需要网站账号；安装和更新流程以 GitHub 项目说明为准。</p></section>
   </div>
-  <p id="usage-stats" class="usage-line" aria-live="polite">匿名使用概况读取中…</p>
 </main>{CORE_STATUS_SCRIPT}""",
     )
 
