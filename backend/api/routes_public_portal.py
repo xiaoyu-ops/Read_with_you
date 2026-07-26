@@ -101,7 +101,7 @@ async def portal_home() -> HTMLResponse:
       <h1>网页是入口，论文仍在你的电脑里。</h1>
       <p class="lede">启动本地 Core 后，继续在浏览器里阅读原始 PDF、划选翻译、写 Markdown 笔记并和 Pet 讨论。完整能力不依赖网站账号。</p>
       <div class="home-actions">
-        <a id="open-core" class="button primary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer" hidden>打开本地工作台</a>
+        <a id="open-core" class="button secondary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">尝试打开本地工作台</a>
         <a id="install-core" class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>
       </div>
       <p class="status">本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
@@ -122,10 +122,11 @@ async def portal_home() -> HTMLResponse:
     <p id="core-state" class="core-state"><span class="core-state-dot" aria-hidden="true"></span><span>正在检查本地 Core</span></p>
     <div>
       <h2 id="local-core-title">先启动，再打开</h2>
-      <p class="lede">只有本机 <code>127.0.0.1:8520</code> 的 Core 正在运行时，完整工作台才可用。没有安装或尚未启动时，请先前往 GitHub 按当前流程操作。</p>
+      <p class="lede">网页只能确认本机 <code>127.0.0.1:8520</code> 的 Core 是否正在运行，不能静默读取电脑里是否装过应用。已经安装时请先启动 Core；尚未安装时再前往 GitHub。</p>
+      <p class="status">Chrome 首次检查时可能询问是否允许本站访问本地网络；该权限只用于连接这台电脑上的 <code>127.0.0.1</code> Core。即使检测被浏览器拦截，也可以直接尝试打开本地工作台。</p>
       <div class="actions">
         <a class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">查看 GitHub 安装流程 ↗</a>
-        <a class="button secondary" href="http://127.0.0.1:8520/api/health" target="_blank" rel="noopener noreferrer">检查本地 Core</a>
+        <button id="retry-core" class="button secondary" type="button">重新检查本地 Core</button>
       </div>
     </div>
   </section>

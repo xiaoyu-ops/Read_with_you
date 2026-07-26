@@ -223,7 +223,7 @@ sudo systemctl enable --now peinidu
 
 ## 生产配置建议
 
-- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露公开学术元数据检索、可重建论文图谱、下载/隐私页、无内容匿名计数、聚合数字与 `/health`；不创建论文目录、不挂载 `/assets`，也不注册 PDF 导入、阅读、翻译、笔记、文献库、Agent、配置、内部 LLM 或 OpenAPI 路由。首页以 GitHub 项目说明作为安装/更新权威，并通过 `http://127.0.0.1:8520/portal-probe` 判断是否显示本地工作台入口；探测失败时不得声称用户已安装。
+- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露公开学术元数据检索、可重建论文图谱、下载/隐私页、无内容匿名计数、聚合数字与 `/health`；不创建论文目录、不挂载 `/assets`，也不注册 PDF 导入、阅读、翻译、笔记、文献库、Agent、配置、内部 LLM 或 OpenAPI 路由。首页以 GitHub 项目说明作为安装/更新权威，并通过 `http://127.0.0.1:8520/portal-probe` 判断 Core 是否就绪；探测成功时将工作台设为主操作，失败时不得声称用户已安装，但必须保留直接打开 loopback 的手动兜底。
 - `public_portal` 的产品演示只从 `/api/portal/demo-assets/{name}` 返回
   `attention-p1-v1.webp` 与 `attention-p7-v1.webp` 两个固定白名单素材，使用一年
   immutable 缓存。未知名称、路径穿越和其他运行模式必须 404；素材随镜像发布，
@@ -261,6 +261,10 @@ browser -> http://127.0.0.1:8520
   `https://readwithyou.xiaoyu666.cyou` 与旧 `https://pet.xiaoyu666.cyou`
   的 `GET/HEAD/OPTIONS`，返回 Core 就绪状态并支持 Private Network Access
   预检；它不代理或放开任何 `/api`、`/assets` 与用户内容。
+- Chrome 142 起，公网页面访问 loopback 会经过 Local Network Access 权限提示。
+  门户的 `fetch` 必须显式声明 `targetAddressSpace: "local"` 并给用户足够时间确认；
+  拒绝权限、旧 Core 或未启动都只能显示“未检测到”。页面同时保留普通顶层导航的
+  “尝试打开本地工作台”，防止权限探测失败把已运行的 Core 错误锁在入口之外。
 - 所有响应增加 `frame-ancestors 'none'`、`X-Frame-Options: DENY`、
   `nosniff`、`same-origin` CORP 与 `no-referrer`，外部页面不能 iframe 嵌入工作台。
 - `local_core` 不启用开发 CORS；页面、API、PDF 和 SSE 均由同一 origin 访问。

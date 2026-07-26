@@ -92,6 +92,11 @@ class PublicPortalTest(unittest.TestCase):
         self.assertIn("https://github.com/xiaoyu-ops/Read_with_you#本地启动", home.text)
         self.assertIn("http://127.0.0.1:8520/portal-probe", home.text)
         self.assertIn('id="open-core"', home.text)
+        self.assertIn('id="retry-core"', home.text)
+        self.assertIn("网页只能确认本机", home.text)
+        self.assertIn("不能静默读取电脑里是否装过应用", home.text)
+        self.assertIn("即使检测被浏览器拦截，也可以直接尝试打开本地工作台", home.text)
+        self.assertIn('targetAddressSpace:"local"', home.text)
         self.assertIn('/api/portal/mascot.png', home.text)
         self.assertNotIn("PRIVACY RECEIPT", home.text)
         self.assertNotIn("统计先征得同意", home.text)
@@ -163,7 +168,7 @@ class PublicPortalTest(unittest.TestCase):
         self.assertNotIn("当前为开发预览", home.text)
         self.assertNotIn("/api/portal/download/macos_arm64", home.text)
         self.assertIn("前往 GitHub 安装 / 启动", home.text)
-        self.assertIn("只有本机", home.text)
+        self.assertIn("网页只能确认本机", home.text)
 
     def test_public_search_and_map_are_explicit_metadata_allowlist(self) -> None:
         candidate = {

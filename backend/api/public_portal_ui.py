@@ -157,6 +157,7 @@ h1 {
 .button.primary { background:var(--ink); color:var(--surface) }
 .button.secondary { border-color:var(--line) }
 .button[aria-disabled="true"] { opacity:.5; pointer-events:none }
+.button:disabled { opacity:.55; cursor:wait }
 .search-hint,.status,.usage-line { color:var(--muted); font-size:13px }
 .search-hint { margin:12px 0 0 }
 .status { min-height:24px; margin:20px 0 0 }
@@ -392,16 +393,22 @@ CORE_STATUS_SCRIPT = r"""
   const summaryTitle = document.getElementById("core-summary-title");
   const open = document.getElementById("open-core");
   const install = document.getElementById("install-core");
-  if (!status || !summary || !summaryLabel || !summaryTitle || !open || !install) return;
+  const retry = document.getElementById("retry-core");
+  if (!status || !summary || !summaryLabel || !summaryTitle || !open || !install || !retry) return;
 
   const showMissing = () => {
     status.classList.remove("is-ready");
-    status.querySelector("span:last-child").textContent = "未检测到本地 Core";
+    status.querySelector("span:last-child").textContent = "未检测到正在运行的本地 Core";
     summary.dataset.state = "missing";
-    summaryLabel.textContent = "需要先安装或启动";
-    summaryTitle.textContent = "从 GitHub 开始";
-    open.hidden = true;
+    summaryLabel.textContent = "可能尚未安装，也可能只是未启动";
+    summaryTitle.textContent = "先启动 Core";
+    open.hidden = false;
+    open.textContent = "尝试打开本地工作台";
+    open.classList.remove("primary");
+    open.classList.add("secondary");
     install.classList.add("primary");
+    retry.disabled = false;
+    retry.textContent = "重新检查本地 Core";
   };
   const showReady = () => {
     status.classList.add("is-ready");
@@ -410,21 +417,41 @@ CORE_STATUS_SCRIPT = r"""
     summaryLabel.textContent = "本地 Core 已就绪";
     summaryTitle.textContent = "可以继续阅读";
     open.hidden = false;
+    open.textContent = "打开本地工作台";
+    open.classList.add("primary");
+    open.classList.remove("secondary");
     install.classList.remove("primary");
+    install.classList.add("secondary");
+    retry.disabled = false;
+    retry.textContent = "重新检查本地 Core";
   };
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 1800);
-  fetch("http://127.0.0.1:8520/portal-probe", {
-    cache:"no-store", mode:"cors", signal:controller.signal
-  })
-    .then(response => {
-      if (!response.ok) throw new Error("core_unavailable");
-      return response.json();
+  const showChecking = () => {
+    status.classList.remove("is-ready");
+    status.querySelector("span:last-child").textContent = "正在检查本地 Core";
+    summary.dataset.state = "checking";
+    summaryLabel.textContent = "正在检查这台电脑";
+    summaryTitle.textContent = "连接本地 Core…";
+    retry.disabled = true;
+    retry.textContent = "检查中…";
+  };
+  const checkCore = () => {
+    showChecking();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
+    fetch("http://127.0.0.1:8520/portal-probe", {
+      cache:"no-store", mode:"cors", signal:controller.signal,
+      targetAddressSpace:"local"
     })
-    .then(data => data && data.status === "ok" ? showReady() : showMissing())
-    .catch(showMissing)
-    .finally(() => clearTimeout(timer));
+      .then(response => {
+        if (!response.ok) throw new Error("core_unavailable");
+        return response.json();
+      })
+      .then(data => data && data.status === "ok" ? showReady() : showMissing())
+      .catch(showMissing)
+      .finally(() => clearTimeout(timer));
+  };
+  retry.addEventListener("click", checkCore);
+  checkCore();
 })();
 </script>
 """
