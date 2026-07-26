@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { Header } from "@/components/Header";
@@ -9,6 +9,7 @@ import { LocalPaperSyncStatus } from "@/components/LocalPaperSyncStatus";
 import {
   getPaperIfExists,
   prefetchTranslationLayout,
+  recordAnonymousUsage,
   type PaperDetail,
 } from "@/lib/api";
 import { saveCurrentReading } from "@/lib/currentReading";
@@ -34,6 +35,7 @@ export default function PaperPage() {
     (PetQuestionRequest & { id: number }) | null
   >(null);
   const [readerNavigation, setReaderNavigation] = useState<ReaderNavigationRequest | null>(null);
+  const readerUsageRecorded = useRef(false);
 
   useEffect(() => {
     setOpenPetOnReady(
@@ -43,6 +45,7 @@ export default function PaperPage() {
     setReaderNavigation(null);
     setPetQuestion(null);
     setReaderReady(false);
+    readerUsageRecorded.current = false;
     const pendingEvidence = window.sessionStorage.getItem("pet:pending-reader-evidence");
     if (pendingEvidence) {
       try {
@@ -88,6 +91,10 @@ export default function PaperPage() {
   }, []);
   const onFirstPageReady = useCallback(() => {
     setReaderReady(true);
+    if (!readerUsageRecorded.current) {
+      readerUsageRecorded.current = true;
+      void recordAnonymousUsage("reader_opened");
+    }
   }, []);
 
   if (loading) {

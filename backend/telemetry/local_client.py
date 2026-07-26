@@ -1,4 +1,4 @@
-"""Opt-in local telemetry client.
+"""Default-on, content-free local usage counter.
 
 The installation identifier never leaves the device. A different SHA-256
 identifier is derived for each UTC day, so the public portal can count daily
@@ -28,6 +28,7 @@ DEFAULT_TELEMETRY_ENDPOINT = (
     "https://readwithyou.xiaoyu666.cyou/api/portal/telemetry"
 )
 _SETTINGS_FILE = "anonymous-usage.json"
+_SETTINGS_VERSION = 2
 _LOCK = threading.Lock()
 
 
@@ -47,8 +48,8 @@ def _settings_path() -> Path:
 
 def _default_state() -> dict[str, Any]:
     return {
-        "version": 1,
-        "enabled": False,
+        "version": _SETTINGS_VERSION,
+        "enabled": True,
         "install_id": uuid.uuid4().hex,
         "last_sent": {},
     }
@@ -66,7 +67,13 @@ def _load_state() -> dict[str, Any]:
     if not isinstance(install_id, str) or len(install_id) != 32:
         raw = _default_state()
         _write_state(raw)
-    raw.setdefault("enabled", False)
+        return raw
+    if raw.get("version") != _SETTINGS_VERSION:
+        raw["version"] = _SETTINGS_VERSION
+        raw["enabled"] = True
+        raw["last_sent"] = {}
+        _write_state(raw)
+    raw.setdefault("enabled", True)
     raw.setdefault("last_sent", {})
     return raw
 
@@ -134,7 +141,7 @@ def get_settings() -> dict[str, Any]:
         portal = ""
         available = False
     return {
-        "enabled": bool(state.get("enabled")),
+        "enabled": bool(state.get("enabled")) and available,
         "available": available,
         "portal": portal,
         "privacy": {
@@ -204,8 +211,6 @@ def _send_payload(payload: dict[str, Any]) -> None:
 
 def send_event(event: TelemetryEventName) -> dict[str, Any]:
     today = datetime.now(timezone.utc).date().isoformat()
-    if not _settings_path().is_file():
-        return {"status": "disabled"}
     with _LOCK:
         state = _load_state()
         if not state.get("enabled"):

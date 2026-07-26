@@ -39,19 +39,20 @@ class LocalTelemetryTest(unittest.TestCase):
         self.env.stop()
         self.temp.cleanup()
 
-    def test_default_is_disabled_and_public_settings_hide_install_id(self) -> None:
+    def test_default_is_enabled_and_public_settings_hide_install_id(self) -> None:
         settings = local_client.get_settings()
+        event = local_client.send_event("reader_opened")
         raw = json.loads(
             (self.root / "settings" / "anonymous-usage.json").read_text(encoding="utf-8")
         )
 
-        self.assertFalse(settings["enabled"])
-        self.assertEqual(local_client.send_event("reader_opened"), {"status": "disabled"})
-        self.assertEqual(self.sent, [])
+        self.assertTrue(settings["enabled"])
+        self.assertEqual(event, {"status": "sent"})
+        self.assertEqual(len(self.sent), 1)
         self.assertIn("install_id", raw)
         self.assertNotIn("install_id", json.dumps(settings))
 
-    def test_explicit_enable_sends_daily_pseudonym_and_deduplicates(self) -> None:
+    def test_daily_pseudonym_is_content_free_and_deduplicated(self) -> None:
         enabled = local_client.update_settings(True)
         reader = local_client.send_event("reader_opened")
         duplicate = local_client.send_event("reader_opened")
@@ -74,6 +75,28 @@ class LocalTelemetryTest(unittest.TestCase):
         serialized = json.dumps(self.sent)
         for forbidden in ("paper", "note", "prompt", "api_key", "path"):
             self.assertNotIn(forbidden, serialized)
+
+    def test_previous_default_off_state_migrates_to_default_on(self) -> None:
+        path = self.root / "settings" / "anonymous-usage.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "enabled": False,
+                    "install_id": "a" * 32,
+                    "last_sent": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = local_client.send_event("core_started")
+        raw = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, {"status": "sent"})
+        self.assertEqual(raw["version"], 2)
+        self.assertTrue(raw["enabled"])
 
     def test_disable_stops_future_events(self) -> None:
         local_client.update_settings(True)
@@ -118,13 +141,13 @@ class LocalTelemetryTest(unittest.TestCase):
         self.assertIn(event.json()["status"], {"sent", "already_sent"})
         self.assertEqual(forbidden.status_code, 422)
 
-    def test_local_core_startup_does_not_emit_telemetry(self) -> None:
+    def test_local_core_startup_emits_only_core_started(self) -> None:
         with patch.object(local_client, "send_event") as send_event:
             app = api_main.create_app("local_core")
             with TestClient(app) as client:
                 self.assertEqual(client.get("/health").status_code, 200)
 
-        send_event.assert_not_called()
+        send_event.assert_called_once_with("core_started")
 
     def test_self_hosted_and_public_portal_do_not_expose_local_controls(self) -> None:
         for mode in ("self_hosted", "public_portal"):

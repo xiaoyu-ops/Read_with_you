@@ -60,6 +60,13 @@ async def lifespan(app: FastAPI):
     _ensure_runtime_dirs()
     await init_db()
     await sync_agent_session_index()
+    telemetry_task: asyncio.Task | None = None
+    if app.state.runtime_mode == RuntimeMode.LOCAL_CORE.value:
+        from ..telemetry.local_client import send_event
+
+        telemetry_task = asyncio.create_task(
+            asyncio.to_thread(send_event, "core_started")
+        )
     # 后台 Run 的执行体只存活在进程内；重启后遗留的 running 状态永远不会
     # 再被更新，前端会无限轮询“执行中”，必须在启动时标记为 error
     swept_tasks = await sweep_stale_agent_tasks()
@@ -81,6 +88,8 @@ async def lifespan(app: FastAPI):
             await cleanup_task
         except asyncio.CancelledError:
             pass
+        if telemetry_task is not None:
+            await asyncio.gather(telemetry_task, return_exceptions=True)
 
 
 async def _portable_cache_cleanup_loop() -> None:

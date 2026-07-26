@@ -72,7 +72,7 @@ test("provider settings expose category-specific sections without duplicating st
   assert.doesNotMatch(provider, /decorate-bar/);
 });
 
-test("local Core no longer emits anonymous usage events from the UI", () => {
+test("reader emits only the fixed anonymous usage event without paper data", () => {
   const api = read("lib/api.ts");
   const paper = read("app/paper/[id]/page.tsx");
 
@@ -80,6 +80,9 @@ test("local Core no longer emits anonymous usage events from the UI", () => {
     fs.existsSync(path.join(frontendDir, "components/AnonymousUsageSettings.tsx")),
     false,
   );
-  assert.doesNotMatch(api, /recordAnonymousUsage|getAnonymousUsageSettings/);
-  assert.doesNotMatch(paper, /recordAnonymousUsage|reader_opened/);
+  assert.match(api, /recordAnonymousUsage/);
+  assert.match(api, /JSON\.stringify\(\{ event \}\)/);
+  assert.doesNotMatch(api, /paper_id.*telemetry|telemetry.*paper_id/);
+  assert.match(paper, /recordAnonymousUsage\("reader_opened"\)/);
+  assert.doesNotMatch(paper, /recordAnonymousUsage\("reader_opened",\s*arxivId/);
 });

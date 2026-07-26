@@ -13,6 +13,20 @@ type TranslationLayoutCacheEntry = {
 
 const translationLayoutCache = new Map<string, TranslationLayoutCacheEntry>();
 
+export async function recordAnonymousUsage(
+  event: "reader_opened" | "translation_succeeded" | "agent_response",
+): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/telemetry/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event }),
+    });
+  } catch {
+    // Usage counting must never interrupt the reading workflow.
+  }
+}
+
 function notifyPaperDataChanged(paperId: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
