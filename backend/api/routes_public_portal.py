@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from html import escape
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .public_portal_ui import ANALYTICS_SCRIPT, HOME_SCRIPT, PORTAL_CSS, map_script
+from .public_portal_ui import ANALYTICS_SCRIPT, CORE_STATUS_SCRIPT, PORTAL_CSS, map_script
 from .routes_search import search_papers
 from ..retrieval.literature_map import (
     LITERATURE_MAP_DEFAULT_NODES,
@@ -28,6 +29,14 @@ from ..telemetry.portal_store import (
 
 
 router = APIRouter(prefix="/api/portal", tags=["public portal"])
+_MASCOT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "frontend"
+    / "public"
+    / "mascot"
+    / "home-mascot.png"
+)
+_GITHUB_INSTALL_URL = "https://github.com/xiaoyu-ops/Read_with_you#本地启动"
 _MAX_TELEMETRY_BODY_BYTES = 2048
 _DOWNLOAD_LABELS = {
     "macos_arm64": "下载 macOS Apple 芯片版",
@@ -36,7 +45,8 @@ _DOWNLOAD_LABELS = {
 _PORTAL_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; "
-        "script-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; "
+        "script-src 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8520; "
+        "frame-ancestors 'none'; "
         "base-uri 'none'; form-action 'self'"
     ),
     "Referrer-Policy": "no-referrer",
@@ -60,80 +70,71 @@ def _page(*, title: str, body: str) -> HTMLResponse:
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
   <header class="site-header">
-    <a class="brand" href="/">陪你<em>读</em></a>
-    <nav class="site-nav" aria-label="门户导航"><a href="/">论文发现</a><a href="/privacy">隐私说明</a><a href="/#local-core">本地工作台</a></nav>
+    <a class="brand" href="/" aria-label="陪你读"><span>陪你<em>读</em></span><img class="brand-mascot" src="/api/portal/mascot.png" alt="" aria-hidden="true"></a>
+    <nav class="site-nav" aria-label="门户导航"><a href="/#local-core">使用说明</a><a href="/privacy">隐私说明</a><a href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">GitHub</a></nav>
   </header>
   {ANALYTICS_SCRIPT}
   {body}
-  <footer class="site-footer">陪你读 · 公网发现论文，本地阅读、翻译、做笔记和问 Pet。</footer>
+  <footer class="site-footer">陪你读 · 网页是入口，论文仍在你的电脑里。</footer>
 </body>
 </html>"""
     return HTMLResponse(html, headers=_PORTAL_HEADERS)
 
 
 async def portal_home() -> HTMLResponse:
-    manifest = await asyncio.to_thread(load_release_manifest)
-    downloads = [
-        (platform_name, _DOWNLOAD_LABELS[platform_name])
-        for platform_name in sorted((manifest or {}).get("downloads", {}))
-        if platform_name in _DOWNLOAD_LABELS
-    ]
-    if manifest is not None and downloads:
-        download_actions = "".join(
-            f'<a class="button{" primary" if index == 0 else ""}" '
-            f'href="/api/portal/download/{escape(platform_name, quote=True)}">'
-            f"{escape(label)}</a>"
-            for index, (platform_name, label) in enumerate(downloads)
-        )
-        release_note = (
-            f"当前版本 {escape(str(manifest['version']))} · "
-            "下载后在本机启动，不需要网站账号"
-        )
-    else:
-        download_actions = (
-            '<span class="button primary" aria-disabled="true">安装包尚未开放</span>'
-        )
-        release_note = "当前为开发预览，安装包尚未开放；已有源码环境可按下方说明启动。"
     return _page(
-        title="陪你读 — 论文发现与关系图谱",
+        title="陪你读 — 本地优先的论文阅读工作台",
         body=f"""<main id="main" class="portal-main">
-  <section class="hero" aria-labelledby="portal-title">
-    <p class="eyebrow">Public research discovery</p>
-    <h1 id="portal-title">找论文，也看清它的来路。</h1>
-    <p class="lede">直接检索 arXiv 与 Semantic Scholar，确认论文后打开原文或探索相似、引用、先行与后续工作。不需要安装，也不需要登录。</p>
-    <div class="task-tabs" role="tablist" aria-label="论文任务">
-      <button type="button" role="tab" data-task="read" aria-selected="true">找论文</button>
-      <button type="button" role="tab" data-task="map" aria-selected="false">看论文关系</button>
-    </div>
-    <form id="paper-search" class="search-form" role="search">
-      <label class="skip" for="paper-query">论文标题、arXiv ID 或 DOI</label>
-      <input id="paper-query" name="q" autocomplete="off" maxlength="300" required>
-      <button id="paper-submit" type="submit">查找论文</button>
-    </form>
-    <p class="search-hint">多条结果不会自动猜测，请先确认标题与作者。</p>
-    <p id="search-status" class="status" aria-live="polite"></p>
-  </section>
-  <section id="paper-results" class="results" aria-label="论文候选"></section>
-  <section id="local-core" class="entry-boundary" aria-labelledby="local-core-title">
-    <p class="boundary-label">PRIVATE WORKSPACE</p>
+  <div class="home-hero">
     <div>
-      <h2 id="local-core-title">精读、翻译和笔记留在你的电脑里</h2>
-      <p>公网只处理公开学术元数据。原始 PDF、划选翻译、笔记、文献库、Pet 对话和 Key 由本地 Core 提供，不进入这个公网服务。</p>
-      <div class="actions">
-        <a class="button primary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">本地 Core 已启动，打开工作台</a>
-        {download_actions}
-        <a class="button secondary" href="https://github.com/xiaoyu-ops/Read_with_you#本地启动" target="_blank" rel="noopener noreferrer">源码启动说明 ↗</a>
+      <p class="eyebrow">Local-first paper workspace</p>
+      <h1>网页是入口，论文仍在你的电脑里。</h1>
+      <p class="lede">启动本地 Core 后，继续在浏览器里阅读原始 PDF、划选翻译、写 Markdown 笔记并和 Pet 讨论。完整能力不依赖网站账号。</p>
+      <div class="home-actions">
+        <a id="open-core" class="button primary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer" hidden>打开本地工作台</a>
+        <a id="install-core" class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>
       </div>
-      <p class="status">{release_note}</p>
+      <p class="status">本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
+    </div>
+    <aside id="core-summary" class="core-summary" data-state="checking" aria-live="polite">
+      <p id="core-summary-label" class="core-summary-label">正在检查本机</p>
+      <strong id="core-summary-title">连接本地 Core…</strong>
+      <dl>
+        <div><dt>公网</dt><dd>项目入口与安装说明</dd></div>
+        <div><dt>本地</dt><dd>PDF、翻译、笔记与 Pet</dd></div>
+        <div><dt>账号</dt><dd>不需要网站账号</dd></div>
+      </dl>
+    </aside>
+  </div>
+  <section id="local-core" class="core-entry" aria-labelledby="local-core-title">
+    <p id="core-state" class="core-state"><span class="core-state-dot" aria-hidden="true"></span><span>正在检查本地 Core</span></p>
+    <div>
+      <h2 id="local-core-title">先启动，再打开</h2>
+      <p class="lede">只有本机 <code>127.0.0.1:8520</code> 的 Core 正在运行时，完整工作台才可用。没有安装或尚未启动时，请先前往 GitHub 按当前流程操作。</p>
+      <div class="actions">
+        <a class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">查看 GitHub 安装流程 ↗</a>
+        <a class="button secondary" href="http://127.0.0.1:8520/api/health" target="_blank" rel="noopener noreferrer">检查本地 Core</a>
+      </div>
     </div>
   </section>
-  <div class="plain-sections">
-    <section><h2>公开元数据</h2><p>检索与图谱来自 arXiv、Semantic Scholar。相似关系和有向引用关系分开呈现。</p></section>
-    <section><h2>私人研究资料</h2><p>PDF、笔记、问题、回答和 Key 不进入公网统计，也不会成为服务器账号资产。</p></section>
-    <section><h2>轻量使用计数</h2><p>默认只数访问、检索、图谱、本地启动与阅读成功。每日匿名标识跨日变化，不记录研究内容。</p></section>
+  <div class="home-sections">
+    <section><h2>仍然是网页体验</h2><p>工作台运行在本机浏览器中，原始 PDF 仍是阅读主面。</p></section>
+    <section><h2>研究资料留在本机</h2><p>论文、笔记、问题、回答与 Key 不成为公网账号资产。</p></section>
+    <section><h2>无需注册账号</h2><p>安装和更新流程以 GitHub 项目说明为准，不再展示虚假的安装包状态。</p></section>
   </div>
   <p id="usage-stats" class="usage-line" aria-live="polite">匿名使用概况读取中…</p>
-</main>{HOME_SCRIPT}""",
+</main>{CORE_STATUS_SCRIPT}""",
+    )
+
+
+@router.get("/mascot.png", include_in_schema=False)
+async def portal_mascot() -> FileResponse:
+    if not _MASCOT_PATH.is_file():
+        raise HTTPException(status_code=404, detail="mascot_not_found")
+    return FileResponse(
+        _MASCOT_PATH,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 

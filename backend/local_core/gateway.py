@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
@@ -33,6 +33,11 @@ _HOP_BY_HOP_HEADERS = {
     "upgrade",
 }
 _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_PORTAL_PROBE_PATH = "/portal-probe"
+_PUBLIC_PORTAL_ORIGINS = {
+    "https://readwithyou.xiaoyu666.cyou",
+    "https://pet.xiaoyu666.cyou",
+}
 
 
 def _is_loopback_peer(value: str) -> bool:
@@ -75,12 +80,18 @@ def _request_is_allowed(request: Request, *, gateway_port: int) -> bool:
     fetch_mode = request.headers.get("sec-fetch-mode", "").strip().lower()
     path = request.url.path
     if fetch_site == "cross-site":
+        origin = request.headers.get("origin", "").strip().rstrip("/")
+        portal_probe = (
+            path == _PORTAL_PROBE_PATH
+            and request.method in {"GET", "HEAD", "OPTIONS"}
+            and origin in _PUBLIC_PORTAL_ORIGINS
+        )
         top_level_navigation = (
             request.method in {"GET", "HEAD"}
             and fetch_mode == "navigate"
             and not path.startswith(("/api", "/assets"))
         )
-        if not top_level_navigation:
+        if not top_level_navigation and not portal_probe:
             return False
 
     if request.method in _UNSAFE_METHODS:
@@ -169,6 +180,35 @@ def create_local_core_gateway(
             "/assets",
             StaticFiles(directory=resolved_assets),
             name="local-paper-assets",
+        )
+
+    @gateway.api_route(
+        _PORTAL_PROBE_PATH,
+        methods=["GET", "HEAD", "OPTIONS"],
+        include_in_schema=False,
+    )
+    async def portal_probe(request: Request):
+        origin = request.headers.get("origin", "").strip().rstrip("/")
+        if origin not in _PUBLIC_PORTAL_ORIGINS:
+            return JSONResponse(status_code=403, content={"detail": "portal_probe_rejected"})
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+            "Cache-Control": "no-store",
+            "Vary": "Origin",
+        }
+        if (
+            request.headers.get("access-control-request-private-network", "")
+            .strip()
+            .lower()
+            == "true"
+        ):
+            headers["Access-Control-Allow-Private-Network"] = "true"
+        if request.method == "OPTIONS":
+            return Response(status_code=204, headers=headers)
+        return JSONResponse(
+            content={"status": "ok", "runtime_mode": "local_core"},
+            headers=headers,
         )
 
     @gateway.api_route(

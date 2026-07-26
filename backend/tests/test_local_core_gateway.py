@@ -86,6 +86,64 @@ class LocalCoreGatewayTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_public_portal_can_probe_core_without_accessing_content_api(self) -> None:
+        headers = {
+            "origin": "https://readwithyou.xiaoyu666.cyou",
+            "sec-fetch-site": "cross-site",
+            "sec-fetch-mode": "cors",
+        }
+        with self.client() as client:
+            probe = client.get("/portal-probe", headers=headers)
+            content = client.get("/api/health", headers=headers)
+
+        self.assertEqual(probe.status_code, 200)
+        self.assertEqual(
+            probe.json(),
+            {"status": "ok", "runtime_mode": "local_core"},
+        )
+        self.assertEqual(
+            probe.headers["access-control-allow-origin"],
+            "https://readwithyou.xiaoyu666.cyou",
+        )
+        self.assertEqual(probe.headers["cache-control"], "no-store")
+        self.assertEqual(content.status_code, 403)
+
+    def test_public_portal_probe_supports_private_network_preflight(self) -> None:
+        with self.client() as client:
+            response = client.options(
+                "/portal-probe",
+                headers={
+                    "origin": "https://readwithyou.xiaoyu666.cyou",
+                    "sec-fetch-site": "cross-site",
+                    "sec-fetch-mode": "cors",
+                    "access-control-request-method": "GET",
+                    "access-control-request-private-network": "true",
+                },
+            )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(
+            response.headers["access-control-allow-origin"],
+            "https://readwithyou.xiaoyu666.cyou",
+        )
+        self.assertEqual(
+            response.headers["access-control-allow-private-network"],
+            "true",
+        )
+
+    def test_public_portal_probe_rejects_unlisted_origin(self) -> None:
+        with self.client() as client:
+            response = client.get(
+                "/portal-probe",
+                headers={
+                    "origin": "https://evil.test",
+                    "sec-fetch-site": "cross-site",
+                    "sec-fetch-mode": "cors",
+                },
+            )
+
+        self.assertEqual(response.status_code, 403)
+
     def test_cross_site_mutation_is_rejected(self) -> None:
         with self.client() as client:
             response = client.post(

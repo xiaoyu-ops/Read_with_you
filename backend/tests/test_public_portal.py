@@ -70,31 +70,31 @@ class PublicPortalTest(unittest.TestCase):
         payload.update(overrides)
         return payload
 
-    def test_portal_home_is_public_discovery_and_privacy_has_no_consent_ui(self) -> None:
+    def test_portal_home_is_local_core_entry_and_privacy_has_no_consent_ui(self) -> None:
         home = self.client.get("/")
         privacy = self.client.get("/privacy")
+        mascot = self.client.get("/api/portal/mascot.png")
 
         self.assertEqual(home.status_code, 200)
-        self.assertIn("找论文，也看清它的来路", home.text)
-        self.assertIn("找论文", home.text)
-        self.assertIn("看论文关系", home.text)
-        self.assertIn('id="paper-search"', home.text)
-        self.assertIn("/api/portal/search", home.text)
-        self.assertNotIn("已安装，打开工作台", home.text)
+        self.assertIn("网页是入口，论文仍在你的电脑里", home.text)
+        self.assertIn("先启动，再打开", home.text)
+        self.assertIn("前往 GitHub 安装 / 启动", home.text)
+        self.assertIn("https://github.com/xiaoyu-ops/Read_with_you#本地启动", home.text)
+        self.assertIn("http://127.0.0.1:8520/portal-probe", home.text)
+        self.assertIn('id="open-core"', home.text)
+        self.assertIn('/api/portal/mascot.png', home.text)
         self.assertNotIn("PRIVACY RECEIPT", home.text)
         self.assertNotIn("统计先征得同意", home.text)
         self.assertNotIn("已同意统计", home.text)
         self.assertNotIn("默认关闭", home.text)
         self.assertNotIn("安装包尚未开放", home.text)
-        self.assertIn("下载 macOS Apple 芯片版", home.text)
-        self.assertIn("下载 Windows x64 版", home.text)
-        self.assertIn("当前版本 0.2.0", home.text)
-        self.assertIn("本地 Core 已启动，打开工作台", home.text)
-        self.assertIn("公网只处理公开学术元数据", home.text)
-        self.assertIn("默认只数访问、检索、图谱", home.text)
+        self.assertNotIn("不需要安装，也不需要登录", home.text)
+        self.assertIn("不需要网站账号", home.text)
         self.assertIn('target="_blank" rel="noopener noreferrer"', home.text)
         self.assertEqual(home.headers["Referrer-Policy"], "no-referrer")
         self.assertIn("frame-ancestors 'none'", home.headers["Content-Security-Policy"])
+        self.assertEqual(mascot.status_code, 200)
+        self.assertEqual(mascot.headers["content-type"], "image/png")
         self.assertEqual(privacy.status_code, 200)
         self.assertIn("你的论文不是我们的数据", privacy.text)
         self.assertIn("默认匿名计数", privacy.text)
@@ -110,9 +110,7 @@ class PublicPortalTest(unittest.TestCase):
         ):
             self.assertEqual(self.client.get(path).status_code, 404, path)
 
-    def test_portal_without_release_explains_preview_and_local_precondition(
-        self,
-    ) -> None:
+    def test_portal_home_does_not_depend_on_release_manifest(self) -> None:
         with patch(
             "backend.api.routes_public_portal.load_release_manifest",
             return_value=None,
@@ -120,11 +118,11 @@ class PublicPortalTest(unittest.TestCase):
             home = self.client.get("/")
 
         self.assertEqual(home.status_code, 200)
-        self.assertIn("安装包尚未开放", home.text)
-        self.assertIn("当前为开发预览", home.text)
+        self.assertNotIn("安装包尚未开放", home.text)
+        self.assertNotIn("当前为开发预览", home.text)
         self.assertNotIn("/api/portal/download/macos_arm64", home.text)
-        self.assertIn("本地 Core 已启动，打开工作台", home.text)
-        self.assertIn("精读、翻译和笔记留在你的电脑里", home.text)
+        self.assertIn("前往 GitHub 安装 / 启动", home.text)
+        self.assertIn("只有本机", home.text)
 
     def test_public_search_and_map_are_explicit_metadata_allowlist(self) -> None:
         candidate = {

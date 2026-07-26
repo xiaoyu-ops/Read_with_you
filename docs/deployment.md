@@ -223,7 +223,7 @@ sudo systemctl enable --now peinidu
 
 ## 生产配置建议
 
-- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露公开学术元数据检索、可重建论文图谱、下载/隐私页、无内容匿名计数、聚合数字与 `/health`；不创建论文目录、不挂载 `/assets`，也不注册 PDF 导入、阅读、翻译、笔记、文献库、Agent、配置、内部 LLM 或 OpenAPI 路由。下载按钮只按服务端已验证的 release manifest 渲染；没有正式发布时明确显示开发预览。本地工作台入口不得声称用户已安装，只在用户已经启动 `127.0.0.1:8520` 后使用，并同时展示健康检查和源码启动说明。
+- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露公开学术元数据检索、可重建论文图谱、下载/隐私页、无内容匿名计数、聚合数字与 `/health`；不创建论文目录、不挂载 `/assets`，也不注册 PDF 导入、阅读、翻译、笔记、文献库、Agent、配置、内部 LLM 或 OpenAPI 路由。首页以 GitHub 项目说明作为安装/更新权威，并通过 `http://127.0.0.1:8520/portal-probe` 判断是否显示本地工作台入口；探测失败时不得声称用户已安装。
 - `PEINIDU_LITERATURE_MAP_CACHE_DIR`: `public_portal` 的独立图谱派生缓存目录；不得指向论文目录、portable bundle 或 local Core 数据目录。
 - `translation_concurrency`: 先用 3-5，按 provider 限流和服务器负载调整。
 - `agent_concurrency`: 先用 1-2，公开访问时避免四 Agent 分析压满 LLM provider。
@@ -253,6 +253,10 @@ browser -> http://127.0.0.1:8520
 - 对外只绑定 `127.0.0.1`，不监听局域网或公网地址。
 - gateway 校验实际 peer、Host、Origin 和 `Sec-Fetch-Site`；跨站 unsafe 请求与
   非顶层导航请求返回 403。
+- 唯一跨站例外是无内容的 `/portal-probe`：只接受
+  `https://readwithyou.xiaoyu666.cyou` 与旧 `https://pet.xiaoyu666.cyou`
+  的 `GET/HEAD/OPTIONS`，返回 Core 就绪状态并支持 Private Network Access
+  预检；它不代理或放开任何 `/api`、`/assets` 与用户内容。
 - 所有响应增加 `frame-ancestors 'none'`、`X-Frame-Options: DENY`、
   `nosniff`、`same-origin` CORP 与 `no-referrer`，外部页面不能 iframe 嵌入工作台。
 - `local_core` 不启用开发 CORS；页面、API、PDF 和 SSE 均由同一 origin 访问。

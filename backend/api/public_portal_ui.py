@@ -46,10 +46,18 @@ a:focus-visible,button:focus-visible,input:focus-visible {
   max-width:1240px; margin:auto; padding:0 28px; border-bottom:1px solid var(--line);
 }
 .brand {
-  text-decoration:none; font-family:ui-serif,"Songti SC",serif;
-  font-size:22px; letter-spacing:.08em;
+  display:inline-flex; align-items:center; gap:9px; text-decoration:none;
+  font-family:ui-serif,"Songti SC",serif; font-size:22px; letter-spacing:.08em;
 }
 .brand em { color:var(--amber); font-style:normal }
+.brand-mascot {
+  width:auto; height:35px; object-fit:contain; transform-origin:50% 100%;
+  animation:brand-mascot-breathe 2.8s cubic-bezier(.22,1,.36,1) infinite;
+}
+@keyframes brand-mascot-breathe {
+  0%,100% { transform:translateY(1px) rotate(-1deg) }
+  50% { transform:translateY(-2px) rotate(1deg) }
+}
 .site-nav { display:flex; align-items:center; gap:24px; font-size:14px }
 .site-nav a { text-underline-offset:4px }
 .site-footer {
@@ -58,6 +66,56 @@ a:focus-visible,button:focus-visible,input:focus-visible {
 }
 .portal-main { max-width:1240px; margin:auto; padding:72px 28px 88px }
 .hero { max-width:920px }
+.home-hero {
+  display:grid; grid-template-columns:minmax(0,1.22fr) minmax(280px,.78fr);
+  gap:72px; align-items:start;
+}
+.home-hero h1 { max-width:780px }
+.home-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:34px }
+.core-summary {
+  padding:24px 26px 28px; border:1px solid var(--line); background:var(--surface);
+}
+.core-summary-label {
+  margin:0 0 14px; color:var(--blue);
+  font:650 12px/1.4 ui-monospace,monospace; letter-spacing:.08em;
+}
+.core-summary strong {
+  display:block; margin-bottom:20px; font-family:ui-serif,"Songti SC",serif;
+  font-size:25px; font-weight:600;
+}
+.core-summary dl { margin:0 }
+.core-summary dl div {
+  display:grid; grid-template-columns:90px minmax(0,1fr); gap:14px;
+  padding:12px 0; border-top:1px solid var(--line);
+}
+.core-summary dt { color:var(--muted) }
+.core-summary dd { margin:0; text-align:right }
+.core-summary[data-state="ready"] .core-summary-label { color:oklch(52% .11 150) }
+.core-summary[data-state="missing"] .core-summary-label { color:var(--amber) }
+.core-entry {
+  display:grid; grid-template-columns:minmax(180px,.45fr) minmax(0,1.55fr);
+  gap:72px; margin-top:72px; padding:32px 0 36px;
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+}
+.core-entry h2 { margin-bottom:10px; font-size:24px }
+.core-entry .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:22px }
+.core-state {
+  display:flex; align-items:center; gap:10px; margin:3px 0 0;
+  color:var(--muted); font:650 13px/1.4 ui-monospace,monospace; letter-spacing:.04em;
+}
+.core-state-dot {
+  width:9px; height:9px; border-radius:50%; background:var(--amber);
+  box-shadow:0 0 0 4px var(--blue-soft);
+}
+.core-state.is-ready .core-state-dot { background:oklch(58% .12 150) }
+.home-sections {
+  display:grid; grid-template-columns:repeat(3,1fr); margin-top:64px;
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+}
+.home-sections section { padding:26px 26px 30px 0 }
+.home-sections section+section { padding-left:26px; border-left:1px solid var(--line) }
+.home-sections h2 { margin-bottom:9px; font-size:18px }
+.home-sections p { margin:0; color:var(--muted); font-size:14px }
 .eyebrow {
   margin:0 0 16px; color:var(--amber); font:650 12px/1.2 ui-monospace,monospace;
   letter-spacing:.16em; text-transform:uppercase;
@@ -246,6 +304,13 @@ h1 {
   .site-header { min-height:62px; padding:0 18px }
   .site-nav { gap:14px }
   .portal-main { padding:48px 18px 64px }
+  .home-hero { grid-template-columns:1fr; gap:36px }
+  .core-entry { grid-template-columns:1fr; gap:18px; margin-top:52px }
+  .home-sections { grid-template-columns:1fr }
+  .home-sections section,.home-sections section+section {
+    padding:22px 0; border-left:0; border-top:1px solid var(--line);
+  }
+  .home-sections section:first-child { border-top:0 }
   h1 { font-size:clamp(40px,13vw,58px) }
   .search-form { grid-template-columns:1fr }
   .search-form button { border-left:0; border-top:1px solid var(--ink) }
@@ -275,7 +340,9 @@ h1 {
   .stage-caption { top:8px; font-size:11px }
 }
 @media(prefers-reduced-motion:reduce) {
-  *,*::before,*::after { scroll-behavior:auto!important; transition:none!important }
+  *,*::before,*::after {
+    scroll-behavior:auto!important; transition:none!important; animation:none!important
+  }
 }
 """
 
@@ -311,6 +378,53 @@ ANALYTICS_SCRIPT = r"""
       });
     } catch {}
   };
+})();
+</script>
+"""
+
+
+CORE_STATUS_SCRIPT = r"""
+<script>
+(() => {
+  const status = document.getElementById("core-state");
+  const summary = document.getElementById("core-summary");
+  const summaryLabel = document.getElementById("core-summary-label");
+  const summaryTitle = document.getElementById("core-summary-title");
+  const open = document.getElementById("open-core");
+  const install = document.getElementById("install-core");
+  if (!status || !summary || !summaryLabel || !summaryTitle || !open || !install) return;
+
+  const showMissing = () => {
+    status.classList.remove("is-ready");
+    status.querySelector("span:last-child").textContent = "未检测到本地 Core";
+    summary.dataset.state = "missing";
+    summaryLabel.textContent = "需要先安装或启动";
+    summaryTitle.textContent = "从 GitHub 开始";
+    open.hidden = true;
+    install.classList.add("primary");
+  };
+  const showReady = () => {
+    status.classList.add("is-ready");
+    status.querySelector("span:last-child").textContent = "已检测到本地 Core";
+    summary.dataset.state = "ready";
+    summaryLabel.textContent = "本地 Core 已就绪";
+    summaryTitle.textContent = "可以继续阅读";
+    open.hidden = false;
+    install.classList.remove("primary");
+  };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1800);
+  fetch("http://127.0.0.1:8520/portal-probe", {
+    cache:"no-store", mode:"cors", signal:controller.signal
+  })
+    .then(response => {
+      if (!response.ok) throw new Error("core_unavailable");
+      return response.json();
+    })
+    .then(data => data && data.status === "ok" ? showReady() : showMissing())
+    .catch(showMissing)
+    .finally(() => clearTimeout(timer));
 })();
 </script>
 """

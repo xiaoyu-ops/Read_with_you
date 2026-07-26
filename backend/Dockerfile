@@ -18,6 +18,7 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend backend
+COPY frontend/public/mascot/home-mascot.png frontend/public/mascot/home-mascot.png
 COPY scripts scripts
 COPY config/config.example.yaml config/config.example.yaml
 COPY docs/third-party/pdf-export-sidecar.md docs/third-party/pdf-export-sidecar.md
