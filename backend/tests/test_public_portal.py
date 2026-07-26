@@ -74,7 +74,18 @@ class PublicPortalTest(unittest.TestCase):
         privacy = self.client.get("/privacy")
 
         self.assertEqual(home.status_code, 200)
-        self.assertIn("网页是入口，论文仍在你的电脑里", home.text)
+        self.assertIn("论文工作台运行在你的电脑里", home.text)
+        self.assertNotIn("已安装，打开工作台", home.text)
+        self.assertNotIn("安装包尚未开放", home.text)
+        self.assertIn("下载 macOS Apple 芯片版", home.text)
+        self.assertIn("下载 Windows x64 版", home.text)
+        self.assertIn("当前版本 0.2.0", home.text)
+        self.assertIn("本地 Core 已启动，打开工作台", home.text)
+        self.assertIn("只有本机 Core 正在运行时，这个入口才可用", home.text)
+        self.assertIn("python scripts/start_local_core_dev.py", home.text)
+        self.assertIn("http://127.0.0.1:8520/api/health", home.text)
+        self.assertIn('href="#local-core">本地使用说明</a>', home.text)
+        self.assertIn('target="_blank" rel="noopener noreferrer"', home.text)
         self.assertIn("上传论文</dt><dd class=\"zero\">0", home.text)
         self.assertEqual(home.headers["Referrer-Policy"], "no-referrer")
         self.assertIn("frame-ancestors 'none'", home.headers["Content-Security-Policy"])
@@ -89,6 +100,22 @@ class PublicPortalTest(unittest.TestCase):
             "/openapi.json",
         ):
             self.assertEqual(self.client.get(path).status_code, 404, path)
+
+    def test_portal_without_release_explains_preview_and_local_precondition(
+        self,
+    ) -> None:
+        with patch(
+            "backend.api.routes_public_portal.load_release_manifest",
+            return_value=None,
+        ):
+            home = self.client.get("/")
+
+        self.assertEqual(home.status_code, 200)
+        self.assertIn("安装包尚未开放", home.text)
+        self.assertIn("当前为开发预览", home.text)
+        self.assertNotIn("/api/portal/download/macos_arm64", home.text)
+        self.assertIn("本地 Core 已启动，打开工作台", home.text)
+        self.assertIn("完成安装不代表服务正在运行", home.text)
 
     def test_release_metadata_hides_origin_url_and_download_counts(self) -> None:
         release = self.client.get("/api/portal/releases/latest")

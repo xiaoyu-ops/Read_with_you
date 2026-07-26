@@ -398,7 +398,7 @@ def create_app(runtime_mode: RuntimeMode | str | None = None) -> FastAPI:
         if mode is RuntimeMode.PUBLIC_PORTAL:
             from .routes_public_portal import portal_home
 
-            return portal_home()
+            return await portal_home()
         return {
             "name": "陪你读 API",
             "version": "0.1.0",

@@ -223,7 +223,7 @@ sudo systemctl enable --now peinidu
 
 ## 生产配置建议
 
-- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露下载/隐私页、内容为空的匿名统计、聚合数字与 `/health`，不创建内容目录、不挂载 `/assets`、不注册论文、翻译、Agent、配置、内部 LLM 或 OpenAPI 路由。
+- `PEINIDU_RUNTIME_MODE`: 只允许 `self_hosted`、`local_core`、`public_portal`，默认 `self_hosted`。当前完整 Docker 部署使用 `self_hosted`；本地 Core 使用 `local_core`；公网门户使用 `public_portal`。门户模式只暴露下载/隐私页、内容为空的匿名统计、聚合数字与 `/health`，不创建内容目录、不挂载 `/assets`、不注册论文、翻译、Agent、配置、内部 LLM 或 OpenAPI 路由。下载按钮只按服务端已验证的 release manifest 渲染；没有正式发布时明确显示开发预览。本地工作台入口不得声称用户已安装，只在用户已经启动 `127.0.0.1:8520` 后使用，并同时展示健康检查和源码启动说明。
 - `translation_concurrency`: 先用 3-5，按 provider 限流和服务器负载调整。
 - `agent_concurrency`: 先用 1-2，公开访问时避免四 Agent 分析压满 LLM provider。
 - `PEINIDU_RATE_LIMIT_PER_MINUTE`: 保护搜索、提取、翻译、分析等昂贵 API；默认 120，公开部署建议先保持开启。

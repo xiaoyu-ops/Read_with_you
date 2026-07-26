@@ -19,6 +19,10 @@ from ..telemetry.portal_store import (
 
 router = APIRouter(prefix="/api/portal", tags=["public portal"])
 _MAX_TELEMETRY_BODY_BYTES = 2048
+_DOWNLOAD_LABELS = {
+    "macos_arm64": "下载 macOS Apple 芯片版",
+    "windows_x64": "下载 Windows x64 版",
+}
 _PORTAL_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; "
@@ -39,6 +43,7 @@ def _page(*, title: str, body: str) -> HTMLResponse:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:,">
   <title>{escape(title)}</title>
   <style>
     :root {{
@@ -78,7 +83,24 @@ def _page(*, title: str, body: str) -> HTMLResponse:
       padding:0 18px; border:1px solid var(--ink); border-radius:7px; text-decoration:none;
       font-weight:600; cursor:pointer }}
     .button.primary {{ background:var(--ink); color:var(--surface) }}
-    .button[aria-disabled="true"] {{ opacity:.48; pointer-events:none }}
+    .button[aria-disabled="true"] {{ opacity:.52; pointer-events:none; cursor:not-allowed }}
+    .local-entry {{ display:grid; grid-template-columns:minmax(180px,.45fr) minmax(0,1.55fr);
+      gap:72px; margin-top:72px; padding:32px 0 36px; border-top:1px solid var(--line);
+      border-bottom:1px solid var(--line) }}
+    .local-entry h2 {{ font-size:24px; margin-bottom:10px }}
+    .local-entry .actions {{ margin-top:22px }}
+    .local-state {{ display:flex; align-items:center; gap:10px; margin:3px 0 0;
+      color:var(--muted); font:600 13px/1.4 ui-monospace,monospace; letter-spacing:.04em }}
+    .state-dot {{ width:9px; height:9px; border-radius:50%; background:var(--accent);
+      box-shadow:0 0 0 4px var(--soft) }}
+    .local-copy {{ max-width:680px }}
+    details {{ margin-top:24px; border-top:1px solid var(--line); padding-top:16px }}
+    summary {{ width:max-content; max-width:100%; cursor:pointer; font-weight:650 }}
+    details ol {{ max-width:680px; margin:16px 0 0; padding-left:1.25rem; color:var(--muted) }}
+    details li+li {{ margin-top:9px }}
+    code {{ padding:.12rem .35rem; border-radius:4px; background:var(--soft);
+      color:var(--ink); font:500 .9em/1.5 ui-monospace,monospace; overflow-wrap:anywhere }}
+    .text-link {{ align-self:center; color:var(--muted); font-size:14px }}
     .receipt {{ background:var(--surface); border:1px solid var(--line); padding:26px;
       box-shadow:12px 12px 0 var(--soft) }}
     .receipt h2 {{ margin:0 0 20px; font:600 13px/1.2 ui-monospace,monospace;
@@ -102,6 +124,8 @@ def _page(*, title: str, body: str) -> HTMLResponse:
     @media(max-width:760px) {{
       header {{ padding:0 18px }} nav {{ gap:14px }}
       main {{ padding:48px 18px 64px }} .hero {{ grid-template-columns:1fr; gap:44px }}
+      h1 {{ font-size:clamp(40px,13vw,58px) }}
+      .local-entry {{ grid-template-columns:1fr; gap:20px; margin-top:56px }}
       .sections {{ grid-template-columns:1fr }}
       .sections section,.sections section+section {{ padding:24px 0; border-left:0;
         border-top:1px solid var(--line) }}
@@ -113,7 +137,7 @@ def _page(*, title: str, body: str) -> HTMLResponse:
   <a class="skip" href="#main">跳到主要内容</a>
   <header>
     <a class="brand" href="/">陪你<em>读</em></a>
-    <nav aria-label="门户导航"><a href="/privacy">隐私说明</a><a href="http://127.0.0.1:8520">打开本地工作台</a></nav>
+    <nav aria-label="门户导航"><a href="/privacy">隐私说明</a><a href="#local-core">本地使用说明</a></nav>
   </header>
   {body}
   <footer>陪你读 · 原始 PDF 阅读、划选翻译与论文 Agent。你的研究资料留在你的设备。</footer>
@@ -122,21 +146,41 @@ def _page(*, title: str, body: str) -> HTMLResponse:
     return HTMLResponse(html, headers=_PORTAL_HEADERS)
 
 
-def portal_home() -> HTMLResponse:
+async def portal_home() -> HTMLResponse:
+    manifest = await asyncio.to_thread(load_release_manifest)
+    downloads = [
+        (platform_name, _DOWNLOAD_LABELS[platform_name])
+        for platform_name in sorted((manifest or {}).get("downloads", {}))
+        if platform_name in _DOWNLOAD_LABELS
+    ]
+    if manifest is not None and downloads:
+        download_actions = "".join(
+            f'<a class="button{" primary" if index == 0 else ""}" '
+            f'href="/api/portal/download/{escape(platform_name, quote=True)}">'
+            f"{escape(label)}</a>"
+            for index, (platform_name, label) in enumerate(downloads)
+        )
+        release_note = (
+            f"当前版本 {escape(str(manifest['version']))} · "
+            "下载后在本机启动，不需要网站账号"
+        )
+    else:
+        download_actions = (
+            '<span class="button primary" aria-disabled="true">安装包尚未开放</span>'
+        )
+        release_note = "当前为开发预览，安装包尚未开放；已有源码环境可按下方说明启动。"
     return _page(
         title="陪你读 — 本地优先的论文阅读工作台",
-        body="""<main id="main">
+        body=f"""<main id="main">
   <div class="hero">
     <div>
       <p class="eyebrow">Local-first paper workspace</p>
-      <h1>网页是入口，论文仍在你的电脑里。</h1>
-      <p class="lede">安装本地 Pet Core 后，继续在浏览器里阅读原始 PDF、划选翻译、写 Markdown 笔记并与 Agent 讨论。模型与翻译服务使用你自己的 Key。</p>
-      <div class="actions" aria-label="下载本地 Pet Core">
-        <a id="download-mac" class="button primary" href="/api/portal/download/macos_arm64" aria-disabled="true">macOS Apple 芯片版准备中</a>
-        <a id="download-windows" class="button" href="/api/portal/download/windows_x64" aria-disabled="true">Windows 版准备中</a>
-        <a class="button" href="http://127.0.0.1:8520">已安装，打开工作台</a>
+      <h1>论文工作台运行在你的电脑里。</h1>
+      <p class="lede">完整能力由本地 Pet Core 提供。这个公网页面只负责发布安装包和说明启动方式，不会保存或代理你的论文、笔记与 Key。</p>
+      <div id="download-actions" class="actions" aria-label="下载本地 Pet Core">
+        {download_actions}
       </div>
-      <p id="release-note" class="stats" role="status">正在读取可用版本…</p>
+      <p id="release-note" class="stats" role="status">{release_note}</p>
     </div>
     <aside class="receipt" aria-label="隐私收据">
       <h2>PRIVACY RECEIPT</h2>
@@ -148,6 +192,25 @@ def portal_home() -> HTMLResponse:
       </dl>
     </aside>
   </div>
+  <section id="local-core" class="local-entry" aria-labelledby="local-core-title">
+    <p class="local-state"><span class="state-dot" aria-hidden="true"></span>已有本地 Core</p>
+    <div>
+      <h2 id="local-core-title">先启动，再打开</h2>
+      <p class="small local-copy">完成安装不代表服务正在运行。只有本机 Core 正在运行时，这个入口才可用；公网页面不会把你带到远程论文库，也不会自动判断你已经安装。</p>
+      <div class="actions">
+        <a class="button" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">本地 Core 已启动，打开工作台</a>
+        <a class="text-link" href="https://github.com/xiaoyu-ops/Read_with_you#本地启动" target="_blank" rel="noopener noreferrer">查看源码启动说明</a>
+      </div>
+      <details>
+        <summary>打不开？按这三步检查</summary>
+        <ol>
+          <li>先启动“陪你读”；源码用户可在项目目录运行 <code>python scripts/start_local_core_dev.py</code>。</li>
+          <li>打开 <a href="http://127.0.0.1:8520/api/health" target="_blank" rel="noopener noreferrer">本地健康检查</a>。能看到状态信息，才表示 Core 已经运行。</li>
+          <li>回到本页，再点击“本地 Core 已启动，打开工作台”。这一步不需要网站账号。</li>
+        </ol>
+      </details>
+    </div>
+  </section>
   <div class="sections">
     <section><h2>仍然是网页体验</h2><p class="small">阅读器运行在本机的 loopback 地址，保留浏览器交互，不把 PDF 和笔记变成服务器账号资产。</p></section>
     <section><h2>服务由你选择</h2><p class="small">LLM、DeepLX 与 MinerU 凭据保存在系统钥匙串；公网入口不代理调用，也看不到 Key。</p></section>
@@ -156,17 +219,9 @@ def portal_home() -> HTMLResponse:
   <p id="usage-stats" class="stats" aria-live="polite">匿名使用概况读取中…</p>
 </main>
 <script>
-  const labels={macos_arm64:"下载 macOS Apple 芯片版",windows_x64:"下载 Windows x64 版"};
-  fetch("/api/portal/releases/latest").then(r=>r.ok?r.json():Promise.reject()).then(data=>{
-    for(const item of data.downloads){
-      const node=document.getElementById(item.platform==="macos_arm64"?"download-mac":"download-windows");
-      node.textContent=labels[item.platform]; node.removeAttribute("aria-disabled");
-    }
-    document.getElementById("release-note").textContent=`当前版本 ${data.version} · 下载后在本机启动，不需要网站账号`;
-  }).catch(()=>{document.getElementById("release-note").textContent="安装包尚未公开；现有本地开发版本不作为正式下载提供。";});
-  fetch("/api/portal/stats").then(r=>r.json()).then(data=>{
-    document.getElementById("usage-stats").textContent=`已同意统计：今日匿名活跃 ${data.active_today} · 今日成功打开阅读器 ${data.readers_today} · 累计下载 ${data.total_downloads}`;
-  }).catch(()=>{document.getElementById("usage-stats").textContent="匿名使用概况暂不可用。";});
+  fetch("/api/portal/stats").then(r=>r.json()).then(data=>{{
+    document.getElementById("usage-stats").textContent=`已同意统计：今日匿名活跃 ${{data.active_today}} · 今日成功打开阅读器 ${{data.readers_today}} · 累计下载 ${{data.total_downloads}}`;
+  }}).catch(()=>{{document.getElementById("usage-stats").textContent="匿名使用概况暂不可用。";}});
 </script>""",
     )
 
