@@ -52,6 +52,27 @@ class RetrievalContractTest(unittest.TestCase):
         self.assertTrue(any(item.arxiv_id == "1706.03762" and item.extractable for item in results))
         self.assertTrue(any(item.paper_id == "S2-ONLY" and not item.extractable for item in results))
 
+    def test_merge_backfills_semantic_scholar_identity(self) -> None:
+        arxiv = PaperCandidate(
+            arxiv_id="1706.03762",
+            title="Attention Is All You Need",
+            authors=[],
+            abstract="",
+            paper_id=None,
+        )
+        s2 = PaperCandidate(
+            arxiv_id="1706.03762",
+            title="Attention Is All You Need",
+            authors=[],
+            abstract="",
+            paper_id="a" * 40,
+            source="s2",
+        )
+
+        result = merge_and_rank("Attention Is All You Need", [arxiv], [s2])
+
+        self.assertEqual(result[0].paper_id, "a" * 40)
+
     def test_create_paper_accepts_only_arxiv_ids(self) -> None:
         self.assertTrue(_is_arxiv_id("1706.03762"))
         self.assertTrue(_is_arxiv_id("hep-th/9901001"))

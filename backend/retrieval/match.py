@@ -81,6 +81,8 @@ def merge_and_rank(
                 existing.match_score = cand.match_score
             if cand.pdf_url is not None and existing.pdf_url is None:
                 existing.pdf_url = cand.pdf_url
+            if cand.paper_id is not None and existing.paper_id is None:
+                existing.paper_id = cand.paper_id
             # S2 abstract 可能比 arXiv 的更干净
             if cand.abstract and len(cand.abstract) > len(existing.abstract or ""):
                 existing.abstract = cand.abstract

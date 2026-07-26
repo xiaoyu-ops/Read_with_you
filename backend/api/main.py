@@ -12,6 +12,7 @@
   /collections          GET/POST  文献库专题
   /papers/{id}/annotations GET/POST/PATCH/DELETE 用户标注
   /papers/{id}/paper-note GET/PUT 论文 Markdown 主笔记
+  /literature-map/{paper_ref} GET 论文相似性与引用关系图谱
   /agent/tasks          GET  Agent 任务历史
   /agent/chat/{id}      GET/POST  Agent 对话工作区
 """
@@ -95,6 +96,7 @@ _RATE_LIMIT_STATE: dict[str, tuple[float, int]] = {}
 _RATE_LIMIT_WINDOW_SECONDS = 60
 _RATE_LIMITED_PREFIXES = (
     "/search",
+    "/literature-map",
     "/papers",
     "/translate",
     "/analyze",
@@ -320,6 +322,7 @@ def _register_content_routes(application: FastAPI) -> None:
     from .routes_collections import router as collections_router
     from .routes_config import router as config_router
     from .routes_internal_llm import router as internal_llm_router
+    from .routes_literature_map import router as literature_map_router
     from .routes_notes import router as notes_router
     from .routes_papers import router as papers_router
     from .routes_pdf_exports import router as pdf_exports_router
@@ -329,6 +332,7 @@ def _register_content_routes(application: FastAPI) -> None:
 
     for router in (
         search_router,
+        literature_map_router,
         papers_router,
         portable_bundle_router,
         translate_router,

@@ -158,7 +158,7 @@ async def search_arxiv(
                 url=f"https://arxiv.org/abs/{arxiv_id}",
                 source="arxiv",
                 pdf_url=pdf_url,
-                paper_id=arxiv_id,
+                paper_id=None,
                 extractable=True,
             )
         )
