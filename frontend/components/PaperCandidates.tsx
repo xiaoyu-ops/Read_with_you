@@ -14,12 +14,16 @@ function formatCitations(n: number | null | undefined): string {
 export function PaperCandidates({
   candidates,
   onSelect,
+  onViewMap,
   creating,
+  task,
   onBeforeAddToLibrary,
 }: {
   candidates: PaperCandidate[];
   onSelect: (c: PaperCandidate) => void;
+  onViewMap: (c: PaperCandidate) => void;
   creating: boolean;
+  task: "read" | "map";
   onBeforeAddToLibrary?: (c: PaperCandidate) => Promise<void>;
 }) {
   if (candidates.length === 0) {
@@ -36,12 +40,35 @@ export function PaperCandidates({
       </p>
       {candidates.map((c, i) => {
         const canExtract = c.extractable !== false && Boolean(c.arxiv_id);
+        const canMap = Boolean(c.paper_id || c.arxiv_id);
+        const readingAction = (
+          <button
+            key="read"
+            onClick={() => canExtract && onSelect(c)}
+            disabled={creating || !canExtract}
+            className={task === "read"
+              ? "rounded-md bg-[hsl(var(--primary))] px-3 py-1.5 text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              : "rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[hsl(var(--foreground))] transition-colors hover:bg-[hsl(var(--muted))] disabled:cursor-not-allowed disabled:opacity-40"}
+          >
+            {canExtract ? "打开阅读" : "无可提取版本"}
+          </button>
+        );
+        const mapAction = (
+          <button
+            key="map"
+            onClick={() => canMap && onViewMap(c)}
+            disabled={!canMap}
+            className={task === "map"
+              ? "rounded-md bg-[hsl(var(--primary))] px-3 py-1.5 text-[hsl(var(--primary-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              : "rounded-md border border-[hsl(var(--border))] px-3 py-1.5 text-[hsl(var(--foreground))] transition-colors hover:bg-[hsl(var(--muted))] disabled:cursor-not-allowed disabled:opacity-40"}
+          >
+            查看图谱
+          </button>
+        );
         return (
           <article
             key={`${c.arxiv_id || c.paper_id || c.title}-${i}`}
-            className={`group rounded-md border border-[hsl(var(--border))] p-4 transition-colors hover:border-[hsl(var(--foreground))] ${
-              !canExtract ? "opacity-55" : ""
-            }`}
+            className="group rounded-md border border-[hsl(var(--border))] p-4 transition-colors hover:border-[hsl(var(--foreground))]"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
@@ -74,7 +101,7 @@ export function PaperCandidates({
                   </span>
                   {!canExtract && (
                     <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                      暂不支持提取
+                      可查看图谱，暂不支持站内阅读
                     </span>
                   )}
                 </div>
@@ -97,13 +124,9 @@ export function PaperCandidates({
                   onBeforeAdd={() => onBeforeAddToLibrary(c)}
                 />
               )}
-              <button
-                onClick={() => canExtract && onSelect(c)}
-                disabled={creating || !canExtract}
-                className="rounded-md bg-[hsl(var(--primary))] px-3 py-1 text-[hsl(var(--primary-foreground))] hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {canExtract ? "打开阅读" : "暂不支持"}
-              </button>
+              {task === "map"
+                ? [readingAction, mapAction]
+                : [mapAction, readingAction]}
             </div>
           </article>
         );

@@ -11,6 +11,8 @@
     "test:inline-reader:browser": "playwright test --config=playwright.inline-reader.config.ts",
     "test:agent-workspace": "node --test tests/agentWorkspace.test.mjs",
     "test:agent-workspace:browser": "playwright test --config=playwright.agent-workspace.config.ts",
+    "test:literature-map": "node --test tests/literatureMap.test.mjs",
+    "test:literature-map:browser": "playwright test --config=playwright.literature-map.config.ts",
     "test:local-library": "node --test tests/localPaperLibrary.test.mjs",
     "test:local-library:browser": "playwright test --config=playwright.local-library.config.ts",
     "test:settings": "node --test tests/settingsPage.test.mjs",

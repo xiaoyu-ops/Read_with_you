@@ -44,6 +44,60 @@ export interface PaperCandidate {
   extractable?: boolean;
 }
 
+export interface LiteraturePaper {
+  id: string;
+  arxiv_id: string | null;
+  doi: string | null;
+  title: string;
+  authors: string[];
+  abstract: string;
+  year: number | null;
+  venue: string | null;
+  citation_count: number | null;
+  reference_count: number | null;
+  is_open_access: boolean;
+  pdf_url: string | null;
+  url: string;
+  similarity: number | null;
+  role?: "origin" | "related";
+}
+
+export interface LiteratureMapEdge {
+  source: string;
+  target: string;
+  kind: "similarity" | "citation";
+  weight: number;
+  provenance: string;
+}
+
+export interface LiteratureMapWork {
+  paper: LiteraturePaper;
+  graph_citation_count?: number;
+  graph_reference_count?: number;
+}
+
+export interface LiteratureMap {
+  version: 1;
+  origin: LiteraturePaper;
+  nodes: LiteraturePaper[];
+  edges: LiteratureMapEdge[];
+  prior_works: LiteratureMapWork[];
+  derivative_works: LiteratureMapWork[];
+  status: "complete" | "partial";
+  provider: "semantic_scholar";
+  retrieved_at: string;
+  cached: boolean;
+  stale: boolean;
+  warnings: string[];
+}
+
+export function candidatePaperRef(candidate: Pick<PaperCandidate, "paper_id" | "arxiv_id">): string | null {
+  const paperId = candidate.paper_id?.trim();
+  if (paperId && /^[a-f0-9]{40}$/i.test(paperId)) return paperId.toLowerCase();
+  const arxivId = candidate.arxiv_id?.trim().replace(/v\d+$/i, "");
+  return arxivId ? `ARXIV:${arxivId}` : null;
+}
+
 export interface Block {
   index: number;
   type: "heading" | "paragraph" | "table" | "code" | "formula" | "figure";
@@ -602,6 +656,26 @@ export async function searchPapers(query: string): Promise<PaperCandidate[]> {
   const candidates = data.candidates;
   writeSearchCache(normalized, candidates);
   return candidates;
+}
+
+export async function getLiteratureMap(
+  paperRef: string,
+  maxNodes = 40,
+): Promise<LiteratureMap> {
+  const normalizedLimit = Math.max(10, Math.min(50, Math.round(maxNodes)));
+  const resp = await fetch(
+    `${API_BASE}/literature-map/${encodeURIComponent(paperRef)}?max_nodes=${normalizedLimit}`,
+  );
+  if (!resp.ok) {
+    const body = await resp.json().catch(() => ({})) as {
+      detail?: string | { message?: string };
+    };
+    const detail = typeof body.detail === "string"
+      ? body.detail
+      : body.detail?.message;
+    throw new Error(detail || `读取论文图谱失败: ${resp.status}`);
+  }
+  return resp.json();
 }
 
 function searchCacheKey(query: string): string {

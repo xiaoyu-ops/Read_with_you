@@ -91,14 +91,16 @@ export function PetAssistant({
   readerContext,
   askRequest,
   onNavigateEvidence,
+  initialOpen = false,
 }: {
   paper: PaperDetail;
   readerContext: ReaderAgentContext | null;
   askRequest?: (PetQuestionRequest & { id: number }) | null;
   onNavigateEvidence?: (evidence: ReaderEvidenceInput) => void;
+  initialOpen?: boolean;
 }) {
   const [hidden, setHidden] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [speaking, setSpeaking] = useState(false);
   const [spriteBroken, setSpriteBroken] = useState(false);
@@ -120,6 +122,10 @@ export function PetAssistant({
     moved: boolean;
   } | null>(null);
   const suppressClickRef = useRef(false);
+
+  useEffect(() => {
+    if (initialOpen) setOpen(true);
+  }, [initialOpen]);
 
   const context = useMemo(
     () => ({

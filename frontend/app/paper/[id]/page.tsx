@@ -28,6 +28,7 @@ export default function PaperPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [readerReady, setReaderReady] = useState(false);
+  const [openPetOnReady, setOpenPetOnReady] = useState(false);
   const [readerContext, setReaderContext] = useState<ReaderAgentContext | null>(null);
   const [petQuestion, setPetQuestion] = useState<
     (PetQuestionRequest & { id: number }) | null
@@ -35,6 +36,9 @@ export default function PaperPage() {
   const [readerNavigation, setReaderNavigation] = useState<ReaderNavigationRequest | null>(null);
 
   useEffect(() => {
+    setOpenPetOnReady(
+      new URLSearchParams(window.location.search).get("pet") === "open",
+    );
     setReaderContext(null);
     setReaderNavigation(null);
     setPetQuestion(null);
@@ -152,6 +156,7 @@ export default function PaperPage() {
           readerContext={readerContext}
           askRequest={petQuestion}
           onNavigateEvidence={onNavigateEvidence}
+          initialOpen={openPetOnReady}
         />
       )}
     </>

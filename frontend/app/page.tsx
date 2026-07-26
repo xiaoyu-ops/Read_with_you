@@ -1,23 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Header } from "@/components/Header";
 import { FadeUp } from "@/components/FadeUp";
 import { SearchBar } from "@/components/SearchBar";
 import { MinerUDocumentImport } from "@/components/MinerUDocumentImport";
 import { PaperCandidates } from "@/components/PaperCandidates";
-import { searchPapers, createPaper, getPaperIfExists, type PaperCandidate } from "@/lib/api";
+import {
+  candidatePaperRef,
+  createPaper,
+  getPaperIfExists,
+  searchPapers,
+  type PaperCandidate,
+} from "@/lib/api";
 import { useRouter } from "next/navigation";
+
+export type HomeTask = "read" | "map";
 
 export default function Home() {
   const router = useRouter();
+  const [task, setTask] = useState<HomeTask>("read");
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [preparingMessage, setPreparingMessage] = useState("");
   const [preparedPaperIds, setPreparedPaperIds] = useState<Set<string>>(new Set());
   const [candidates, setCandidates] = useState<PaperCandidate[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const value = new URLSearchParams(window.location.search).get("task");
+    setTask(value === "map" ? "map" : "read");
+  }, []);
+
+  const changeTask = (next: HomeTask) => {
+    setTask(next);
+    router.replace(next === "map" ? "/?task=map" : "/?task=read", { scroll: false });
+  };
 
   const handleSearch = async (query: string) => {
     setLoading(true);
@@ -35,6 +54,7 @@ export default function Home() {
   };
 
   const handleSelect = async (c: PaperCandidate) => {
+    if (!c.arxiv_id) return;
     setCreating(true);
     setError(null);
     setPreparingMessage("正在检查本地是否已有这篇论文…");
@@ -56,15 +76,25 @@ export default function Home() {
   };
 
   const handleBeforeAddToLibrary = async (c: PaperCandidate) => {
+    if (!c.arxiv_id) throw new Error("这篇论文暂时没有可提取的 arXiv 版本。");
     if (preparedPaperIds.has(c.arxiv_id)) return;
     await createPaper(c.arxiv_id, c.title, c.authors);
     setPreparedPaperIds((prev) => new Set(prev).add(c.arxiv_id));
   };
 
+  const handleViewMap = (candidate: PaperCandidate) => {
+    const paperRef = candidatePaperRef(candidate);
+    if (!paperRef) {
+      setError("这篇候选缺少可用于构图的论文标识。");
+      return;
+    }
+    router.push(`/literature-map/${encodeURIComponent(paperRef)}`);
+  };
+
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-3xl px-4 pt-24 pb-16 md:pt-28">
+      <main className="mx-auto max-w-4xl px-4 pt-24 pb-16 md:pt-28">
         <FadeUp>
           <div className="mb-6 flex items-center justify-center gap-2.5 md:gap-3">
             <h1 aria-label="陪你读" className="home-wordmark text-4xl md:text-5xl">
@@ -88,11 +118,47 @@ export default function Home() {
         </FadeUp>
 
         <FadeUp delay={1}>
-          <SearchBar onSearch={handleSearch} loading={loading} />
+          <div className="home-task-switch" role="tablist" aria-label="选择检索任务">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={task === "read"}
+              className="home-task-tab"
+              onClick={() => changeTask("read")}
+            >
+              找论文精读
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={task === "map"}
+              className="home-task-tab"
+              onClick={() => changeTask("map")}
+            >
+              看论文关系
+            </button>
+          </div>
+          <SearchBar
+            onSearch={handleSearch}
+            loading={loading}
+            placeholder={task === "map"
+              ? "输入一篇核心论文的标题 / arXiv ID / URL"
+              : "输入论文标题 / arXiv ID / URL"}
+          />
+          <p className="mt-2 text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">
+            {task === "map"
+              ? "先确认正确论文，再查看相似论文、引用脉络与先行/后续工作。"
+              : "先确认正确论文，再提取原始 PDF 进入精读工作台。"}
+          </p>
         </FadeUp>
 
         <FadeUp delay={2}>
-          <MinerUDocumentImport />
+          <div className="mt-8 border-t border-[hsl(var(--border))] pt-6">
+            <p className="mb-3 text-xs font-mono text-[hsl(var(--muted-foreground))]">
+              或导入 PDF
+            </p>
+            <MinerUDocumentImport />
+          </div>
         </FadeUp>
 
         {error && (
@@ -106,7 +172,9 @@ export default function Home() {
             <PaperCandidates
               candidates={candidates}
               onSelect={handleSelect}
+              onViewMap={handleViewMap}
               creating={creating}
+              task={task}
               onBeforeAddToLibrary={handleBeforeAddToLibrary}
             />
           </FadeUp>

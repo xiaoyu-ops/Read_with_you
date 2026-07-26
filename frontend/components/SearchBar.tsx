@@ -5,9 +5,11 @@ import { useState } from "react";
 export function SearchBar({
   onSearch,
   loading,
+  placeholder = "输入论文标题 / arXiv ID / URL",
 }: {
   onSearch: (query: string) => void;
   loading: boolean;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState("");
 
@@ -22,7 +24,7 @@ export function SearchBar({
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="输入论文标题 / arXiv ID / URL"
+        placeholder={placeholder}
         className="flex-1 rounded-md border border-[hsl(var(--border))] bg-transparent px-4 py-2.5 text-sm font-mono text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--foreground))]"
         autoFocus
       />
