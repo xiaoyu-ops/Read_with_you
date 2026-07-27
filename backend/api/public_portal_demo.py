@@ -464,52 +464,56 @@ Transformer 的核心变化不是在 RNN 上叠加注意力，
 
 DEMO_CSS = r"""
 .demo-jump {
-  display:inline-flex; margin-top:18px; color:var(--blue); font-weight:650;
-  text-underline-offset:5px;
+  display:inline-flex; margin-top:22px; color:var(--ink); font-weight:600;
+  text-decoration-thickness:1px; text-underline-offset:6px;
 }
 .product-demo [hidden] { display:none !important }
 .product-demo {
-  margin-top:76px; padding:70px 0 78px;
-  border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  margin-top:102px; padding:28px 0 88px;
+  border-top:2px solid var(--ink); border-bottom:1px solid var(--ink);
   scroll-margin-top:28px;
 }
 .demo-intro {
   display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,.5fr);
-  gap:clamp(32px,6vw,84px); align-items:end; margin-bottom:34px;
+  gap:clamp(42px,8vw,118px); align-items:start; margin-bottom:40px;
 }
 .demo-kicker {
-  margin:0 0 13px; color:var(--amber); font-weight:720; font-size:13px;
+  margin:0 0 34px; color:var(--ink); font-weight:600; font-size:12px;
+  letter-spacing:.025em;
 }
 .demo-intro h2 {
-  max-width:760px; margin:0; font-family:ui-serif,"Songti SC",serif;
-  font-size:clamp(34px,4.8vw,60px); font-weight:540; line-height:1.08;
-  letter-spacing:-.035em;
+  max-width:760px; margin:0; font-family:"Helvetica Neue",Arial,"PingFang SC",sans-serif;
+  font-size:clamp(40px,5.4vw,72px); font-weight:700; line-height:1;
+  letter-spacing:-.055em;
 }
 .demo-intro>div>p:last-child {
-  max-width:60ch; margin:18px 0 0; color:var(--muted); font-size:17px;
+  max-width:54ch; margin:22px 0 0; color:var(--ink); font-size:17px;
 }
-.demo-paper-meta { display:grid; gap:5px; justify-items:start; font-size:13px }
-.demo-paper-meta strong { font-family:ui-serif,"Songti SC",serif; font-size:19px }
+.demo-paper-meta {
+  display:grid; gap:5px; justify-items:start; padding-top:16px;
+  border-top:1px solid var(--ink); font-size:12px;
+}
+.demo-paper-meta strong { font-size:17px }
 .demo-paper-meta span,.demo-paper-meta small { color:var(--muted) }
 .demo-paper-meta small { max-width:42ch; margin-top:8px }
-.demo-paper-meta a { color:var(--blue); text-underline-offset:4px }
+.demo-paper-meta a { color:var(--ink); text-underline-offset:5px }
 .demo-workspace {
   display:grid; grid-template-columns:minmax(0,1.08fr) minmax(380px,.92fr);
-  min-height:720px; border:1px solid var(--line); background:var(--surface);
+  min-height:720px; border:1px solid var(--ink); background:var(--surface);
 }
 .demo-paper-pane {
   min-width:0; display:grid; grid-template-rows:auto minmax(0,1fr) auto;
-  padding:18px; background:oklch(30% .012 252);
+  padding:18px; background:oklch(91% .004 250);
 }
 .demo-paper-toolbar,.demo-page-caption {
-  display:flex; justify-content:space-between; gap:16px; color:oklch(84% .01 83);
+  display:flex; justify-content:space-between; gap:16px; color:oklch(32% .006 250);
   font-size:12px; letter-spacing:.03em;
 }
 .demo-paper-toolbar { padding:0 2px 13px }
 .demo-page-caption { margin:12px 2px 0 }
 .demo-page-viewport {
   position:relative; min-height:0; overflow:hidden; display:grid; place-items:center;
-  background:oklch(24% .01 252);
+  background:oklch(87% .004 250);
 }
 .demo-page-sheet {
   position:relative; width:min(100%,540px); aspect-ratio:612/792;
@@ -518,7 +522,7 @@ DEMO_CSS = r"""
 }
 .demo-page-sheet img {
   display:block; width:100%; height:100%; object-fit:contain; background:oklch(98% .004 83);
-  box-shadow:0 18px 50px oklch(10% .01 252 / .26);
+  box-shadow:0 16px 34px oklch(10% .006 250 / .16);
   pointer-events:none; user-select:none;
 }
 .demo-text-layer {
@@ -546,7 +550,7 @@ DEMO_CSS = r"""
   border-radius:3px; background:var(--ink); color:var(--surface);
   font-size:11px; font-weight:700; white-space:nowrap;
 }
-.demo-panel { min-width:0; display:flex; flex-direction:column; padding:30px 34px 26px }
+.demo-panel { min-width:0; display:flex; flex-direction:column; padding:34px 38px 28px }
 .demo-progress {
   list-style:none; display:grid; grid-template-columns:repeat(3,1fr); gap:0;
   margin:0 0 44px; padding:0; border-bottom:1px solid var(--line);
@@ -556,14 +560,17 @@ DEMO_CSS = r"""
   color:var(--muted); font-size:12px;
 }
 .demo-progress li span { font-variant-numeric:tabular-nums }
-.demo-progress li.is-current { color:var(--ink); font-weight:720; border-bottom:2px solid var(--blue) }
-.demo-progress li.is-complete { color:var(--blue) }
+.demo-progress li.is-current { color:var(--ink); font-weight:720; border-bottom:2px solid var(--ink) }
+.demo-progress li.is-complete { color:var(--ink) }
 .demo-step-label,.demo-translation span,.demo-note-heading span,.demo-pet-question span,
 .demo-verdict>span {
-  display:block; margin-bottom:7px; color:var(--blue);
-  font-size:12px; font-weight:720; letter-spacing:.04em;
+  display:block; margin-bottom:7px; color:var(--ink);
+  font-size:12px; font-weight:650; letter-spacing:.02em;
 }
-.demo-step h3 { margin:0; font-family:ui-serif,"Songti SC",serif; font-size:26px }
+.demo-step h3 {
+  margin:0; font-family:"Helvetica Neue",Arial,"PingFang SC",sans-serif;
+  font-size:28px; font-weight:700; letter-spacing:-.025em;
+}
 .demo-step>p:not(.demo-step-label) { max-width:48ch; margin:14px 0 0; color:var(--muted) }
 .demo-step .demo-experience-note {
   margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
@@ -581,10 +588,11 @@ DEMO_CSS = r"""
 .demo-note-heading { display:flex; align-items:center; gap:12px }
 .demo-note-heading span { margin:0 }
 .demo-note-heading strong {
-  padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:12px;
+  padding:2px 8px; border:1px solid var(--ink); border-radius:0; font-size:12px;
 }
 .demo-note pre {
-  margin:13px 0 0; padding:14px; overflow:auto; background:var(--blue-soft);
+  margin:13px 0 0; padding:14px; overflow:auto; background:var(--paper);
+  border:1px solid var(--line);
   color:var(--ink); font:500 13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;
   white-space:pre-wrap;
 }
@@ -601,7 +609,8 @@ DEMO_CSS = r"""
 }
 .demo-evidence { display:grid; gap:24px }
 .demo-verdict strong {
-  display:block; font-family:ui-serif,"Songti SC",serif; font-size:31px; font-weight:600;
+  display:block; font-family:"Helvetica Neue",Arial,"PingFang SC",sans-serif;
+  font-size:33px; font-weight:700; letter-spacing:-.03em;
 }
 .demo-verdict p { margin:10px 0 0; color:var(--muted); font-size:14px }
 .demo-evidence-list { border-top:1px solid var(--line) }
@@ -611,7 +620,8 @@ DEMO_CSS = r"""
   border:0; border-bottom:1px solid var(--line); background:transparent;
   color:var(--ink); text-align:left; cursor:pointer;
 }
-.demo-evidence-list button[aria-pressed="true"] { color:var(--blue) }
+.demo-evidence-list button[aria-pressed="true"] { color:var(--ink); font-weight:650 }
+.demo-evidence-list button[aria-pressed="true"] span { text-decoration:underline; text-underline-offset:5px }
 .demo-evidence-list button[aria-pressed="true"] strong::after { content:" · 正在核对" }
 .demo-evidence-list strong { font-size:12px }
 .demo-evidence-list small { color:var(--muted); font-size:12px }
@@ -629,7 +639,7 @@ DEMO_CSS = r"""
   .demo-progress { margin-bottom:32px }
 }
 @media(max-width:720px) {
-  .product-demo { margin-top:58px; padding:54px 0 60px }
+  .product-demo { margin-top:72px; padding:22px 0 60px }
   .demo-intro { grid-template-columns:1fr; gap:26px }
   .demo-workspace { grid-template-columns:1fr; min-height:0 }
   .demo-paper-pane { min-height:440px; padding:12px }
