@@ -185,20 +185,22 @@ class PublicPortalTest(unittest.TestCase):
                     mode,
                 )
 
-    def test_soft_ui_preview_is_separate_and_public_portal_only(self) -> None:
+    def test_minimal_preview_is_separate_and_public_portal_only(self) -> None:
         home = self.client.get("/")
-        preview = self.client.get("/soft-ui-preview")
+        preview = self.client.get("/minimal-preview")
 
         self.assertEqual(preview.status_code, 200)
-        self.assertIn("陪你读 Soft UI 探索版", preview.text)
-        self.assertIn("Soft research workspace", preview.text)
-        self.assertIn("这是独立的视觉探索页", preview.text)
+        self.assertIn("陪你读 Minimalism 探索版", preview.text)
+        self.assertIn("Local-first paper reading", preview.text)
+        self.assertIn("一篇论文，一条清晰证据链", preview.text)
+        self.assertIn("独立视觉探索", preview.text)
         self.assertIn("返回当前正式主页", preview.text)
-        self.assertNotIn("Soft research workspace", home.text)
+        self.assertNotIn("Local-first paper reading", home.text)
+        self.assertEqual(self.client.get("/soft-ui-preview").status_code, 404)
 
         for mode in ("self_hosted", "local_core"):
             with TestClient(api_main.create_app(mode)) as client:
-                self.assertEqual(client.get("/soft-ui-preview").status_code, 404)
+                self.assertEqual(client.get("/minimal-preview").status_code, 404)
 
     def test_portal_home_does_not_depend_on_release_manifest(self) -> None:
         with patch(
