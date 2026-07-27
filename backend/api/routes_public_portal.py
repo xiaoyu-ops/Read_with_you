@@ -15,6 +15,7 @@ from .public_portal_demo import (
     demo_markup,
     resolve_demo_asset,
 )
+from .public_portal_soft_ui import soft_ui_preview_document
 from .public_portal_ui import (
     ANALYTICS_SCRIPT,
     CORE_STATUS_SCRIPT,
@@ -137,6 +138,10 @@ async def portal_home() -> HTMLResponse:
   </div>
 </main>{CORE_STATUS_SCRIPT}""",
     )
+
+
+def soft_ui_preview_page() -> HTMLResponse:
+    return HTMLResponse(soft_ui_preview_document(), headers=_PORTAL_HEADERS)
 
 
 @router.get("/mascot.png", include_in_schema=False)
