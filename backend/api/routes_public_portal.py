@@ -15,7 +15,7 @@ from .public_portal_demo import (
     demo_markup,
     resolve_demo_asset,
 )
-from .public_portal_minimal import minimal_preview_document
+from .public_portal_minimal import minimal_home_document
 from .public_portal_ui import (
     ANALYTICS_SCRIPT,
     CORE_STATUS_SCRIPT,
@@ -93,55 +93,16 @@ def _page(*, title: str, body: str) -> HTMLResponse:
 
 
 async def portal_home() -> HTMLResponse:
-    return _page(
-        title="陪你读 — 读好论文，沉淀基础",
-        body=f"""<main id="main" class="portal-main">
-  <div class="home-hero">
-    <div>
-      <p class="eyebrow">Local-first paper workspace</p>
-      <h1>读好论文，沉淀基础。</h1>
-      <div class="home-actions">
-        <a id="open-core" class="button secondary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">尝试打开本地工作台</a>
-        <a id="install-core" class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>
-      </div>
-      <p class="status">本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
-      <a class="demo-jump" href="#product-demo">看看精读与证据分析怎么工作 ↓</a>
-    </div>
-    <aside class="usage-summary" aria-labelledby="usage-summary-title">
-      <p class="usage-summary-label">匿名使用概况</p>
-      <strong id="usage-summary-title">陪你读正在被使用</strong>
-      <dl>
-        <div><dt>累计访问</dt><dd id="total-portal-visits" aria-live="polite">读取中…</dd></div>
-        <div><dt>Core 启动</dt><dd id="total-core-starts" aria-live="polite">读取中…</dd></div>
-        <div><dt>开始阅读</dt><dd id="total-reader-opens" aria-live="polite">读取中…</dd></div>
-      </dl>
-      <small>累计匿名次数，不代表唯一用户人数；不包含论文、笔记、问题或回答。</small>
-    </aside>
-  </div>
-  {demo_markup()}
-  <section id="local-core" class="core-entry" aria-labelledby="local-core-title">
-    <p id="core-state" class="core-state"><span class="core-state-dot" aria-hidden="true"></span><span>正在检查本地 Core</span></p>
-    <div>
-      <h2 id="local-core-title">先启动，再打开</h2>
-      <p class="lede">网页只能确认本机 <code>127.0.0.1:8520</code> 的 Core 是否正在运行，不能静默读取电脑里是否装过应用。已经安装时请先启动 Core；尚未安装时再前往 GitHub。</p>
-      <p class="status">Chrome 首次检查时可能询问是否允许本站访问本地网络；该权限只用于连接这台电脑上的 <code>127.0.0.1</code> Core。即使检测被浏览器拦截，也可以直接尝试打开本地工作台。</p>
-      <div class="actions">
-        <a class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">查看 GitHub 安装流程 ↗</a>
-        <button id="retry-core" class="button secondary" type="button">重新检查本地 Core</button>
-      </div>
-    </div>
-  </section>
-  <div class="home-sections">
-    <section><h2>仍然是网页体验</h2><p>工作台运行在本机浏览器中，原始 PDF 仍是阅读主面。</p></section>
-    <section><h2>研究资料留在本机</h2><p>论文、笔记、问题、回答与 Key 不成为公网账号资产。</p></section>
-    <section><h2>无需注册账号</h2><p>不需要网站账号；安装和更新流程以 GitHub 项目说明为准。</p></section>
-  </div>
-</main>{CORE_STATUS_SCRIPT}""",
+    return HTMLResponse(
+        minimal_home_document(
+            demo_css=DEMO_CSS,
+            demo_html=demo_markup(),
+            analytics_script=ANALYTICS_SCRIPT,
+            core_script=CORE_STATUS_SCRIPT,
+            github_url=_GITHUB_INSTALL_URL,
+        ),
+        headers=_PORTAL_HEADERS,
     )
-
-
-def minimal_preview_page() -> HTMLResponse:
-    return HTMLResponse(minimal_preview_document(), headers=_PORTAL_HEADERS)
 
 
 @router.get("/mascot.png", include_in_schema=False)

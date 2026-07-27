@@ -185,17 +185,16 @@ class PublicPortalTest(unittest.TestCase):
                     mode,
                 )
 
-    def test_minimal_preview_is_separate_and_public_portal_only(self) -> None:
+    def test_minimalism_is_the_public_home_without_preview_route(self) -> None:
         home = self.client.get("/")
         preview = self.client.get("/minimal-preview")
 
-        self.assertEqual(preview.status_code, 200)
-        self.assertIn("陪你读 Minimalism 探索版", preview.text)
-        self.assertIn("Local-first paper reading", preview.text)
-        self.assertIn("一篇论文，一条清晰证据链", preview.text)
-        self.assertIn("独立视觉探索", preview.text)
-        self.assertIn("返回当前正式主页", preview.text)
-        self.assertNotIn("Local-first paper reading", home.text)
+        self.assertEqual(preview.status_code, 404)
+        self.assertEqual(home.status_code, 200)
+        self.assertIn("Local-first paper reading", home.text)
+        self.assertIn("界面安静，边界明确", home.text)
+        self.assertIn('id="product-demo"', home.text)
+        self.assertIn('id="local-core"', home.text)
         self.assertEqual(self.client.get("/soft-ui-preview").status_code, 404)
 
         for mode in ("self_hosted", "local_core"):
