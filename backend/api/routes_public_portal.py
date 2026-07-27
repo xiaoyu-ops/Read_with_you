@@ -99,7 +99,6 @@ async def portal_home() -> HTMLResponse:
     <div>
       <p class="eyebrow">Local-first paper workspace</p>
       <h1>读好论文，沉淀基础。</h1>
-      <p class="lede">在原始 PDF 上划选翻译、记录判断，让 Pet 帮你核对方法、数据、超参数和证据。论文与笔记留在本机。</p>
       <div class="home-actions">
         <a id="open-core" class="button secondary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">尝试打开本地工作台</a>
         <a id="install-core" class="button primary" href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>

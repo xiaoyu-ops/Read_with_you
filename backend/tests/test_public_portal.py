@@ -77,7 +77,12 @@ class PublicPortalTest(unittest.TestCase):
 
         self.assertEqual(home.status_code, 200)
         self.assertIn("读好论文，沉淀基础", home.text)
-        self.assertIn("让 Pet 帮你核对方法、数据、超参数和证据", home.text)
+        self.assertNotIn("让 Pet 帮你核对方法、数据、超参数和证据", home.text)
+        self.assertIn('aria-label="门户导航"', home.text)
+        self.assertIn("产品演示", home.text)
+        self.assertIn("本地使用", home.text)
+        self.assertIn("隐私说明", home.text)
+        self.assertIn("GitHub", home.text)
         self.assertIn("匿名使用概况", home.text)
         self.assertIn('id="total-portal-visits"', home.text)
         self.assertIn('id="total-core-starts"', home.text)

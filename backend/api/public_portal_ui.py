@@ -58,8 +58,16 @@ a:focus-visible,button:focus-visible,input:focus-visible {
   0%,100% { transform:translateY(1px) rotate(-1deg) }
   50% { transform:translateY(-2px) rotate(1deg) }
 }
-.site-nav { display:flex; align-items:center; gap:24px; font-size:14px }
-.site-nav a { text-underline-offset:4px }
+.site-nav { display:flex; align-items:center; gap:8px; font-size:13px }
+.site-nav a {
+  min-height:36px; display:inline-flex; align-items:center; justify-content:center;
+  padding:0 13px; border:1px solid var(--line); border-radius:6px;
+  background:var(--surface); text-decoration:none;
+  transition:background-color .18s ease-out,border-color .18s ease-out,color .18s ease-out;
+}
+.site-nav a:hover { border-color:var(--ink); background:var(--blue-soft) }
+.site-nav a:last-child { border-color:var(--ink); background:var(--ink); color:var(--surface) }
+.site-nav a:last-child:hover { background:var(--blue); border-color:var(--blue) }
 .site-footer {
   max-width:1240px; margin:auto; padding:28px; color:var(--muted);
   font-size:13px; border-top:1px solid var(--line);
@@ -305,11 +313,14 @@ h1 {
   .map-list { display:none }
 }
 @media(max-width:760px) {
-  .site-header { min-height:62px; gap:12px; padding:0 18px }
+  .site-header { min-height:0; flex-wrap:wrap; gap:10px; padding:12px 18px 10px }
   .brand { flex:none; gap:6px; white-space:nowrap; font-size:18px }
   .brand-mascot { height:29px }
-  .site-nav { gap:10px; min-width:0; font-size:12px; white-space:nowrap }
-  .site-nav a { flex:none }
+  .site-nav {
+    width:100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:6px; font-size:11px; white-space:nowrap;
+  }
+  .site-nav a { min-width:0; min-height:34px; padding:0 3px }
   .portal-main { padding:48px 18px 64px }
   .home-hero { grid-template-columns:1fr; gap:36px }
   .core-entry { grid-template-columns:1fr; gap:18px; margin-top:52px }
