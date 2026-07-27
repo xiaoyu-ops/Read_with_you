@@ -94,11 +94,11 @@ def _page(*, title: str, body: str) -> HTMLResponse:
 async def portal_home() -> HTMLResponse:
     return _page(
         title="陪你读 — 读好论文，沉淀基础",
-    body=f"""<main id="main" class="portal-main">
+        body=f"""<main id="main" class="portal-main">
   <div class="home-hero">
     <div>
-      <p class="eyebrow">陪你读，开源论文阅读工作台</p>
-      <h1><span>读好论文，</span><span>沉淀基础。</span></h1>
+      <p class="eyebrow">Local-first paper workspace</p>
+      <h1>读好论文，沉淀基础。</h1>
       <p class="lede">在原始 PDF 上划选翻译、记录判断，让 Pet 帮你核对方法、数据、超参数和证据。论文与笔记留在本机。</p>
       <div class="home-actions">
         <a id="open-core" class="button secondary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">尝试打开本地工作台</a>
