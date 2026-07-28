@@ -375,7 +375,7 @@ def minimal_home_document(
   <header class="minimal-header">
     <a class="minimal-brand" href="/" aria-label="陪你读">
       <span>陪你<em>读</em></span>
-      <img src="/api/portal/mascot.png" alt="" aria-hidden="true">
+      <img src="/api/portal/mascot-v1.webp" alt="" aria-hidden="true" width="25" height="31" decoding="async">
     </a>
     <nav class="minimal-nav" aria-label="门户导航">
       <a href="#product-demo">产品演示</a>

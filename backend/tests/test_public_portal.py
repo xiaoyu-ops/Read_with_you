@@ -86,7 +86,8 @@ class PublicPortalTest(unittest.TestCase):
     def test_portal_home_shows_fixed_product_demo_and_local_core_entry(self) -> None:
         home = self.client.get("/")
         privacy = self.client.get("/privacy")
-        mascot = self.client.get("/api/portal/mascot.png")
+        mascot = self.client.get("/api/portal/mascot-v1.webp")
+        legacy_mascot = self.client.get("/api/portal/mascot.png")
 
         self.assertEqual(home.status_code, 200)
         self.assertIn("读好论文，沉淀基础", home.text)
@@ -149,7 +150,13 @@ class PublicPortalTest(unittest.TestCase):
         self.assertIn("即使检测被浏览器拦截，也可以直接尝试打开本地工作台", home.text)
         self.assertIn("网页无法判断电脑里是否安装过 Chrome", home.text)
         self.assertIn('targetAddressSpace:"local"', home.text)
-        self.assertIn('/api/portal/mascot.png', home.text)
+        self.assertIn("setTimeout(() => controller.abort(), 2500)", home.text)
+        self.assertNotIn("controller.abort(), 12000", home.text)
+        self.assertIn('window.addEventListener("load", scheduleCoreCheck', home.text)
+        self.assertIn('/api/portal/mascot-v1.webp', home.text)
+        self.assertNotIn('/api/portal/mascot.png', home.text)
+        self.assertIn('loading="lazy"', home.text)
+        self.assertIn('decoding="async"', home.text)
         self.assertNotIn("PRIVACY RECEIPT", home.text)
         self.assertNotIn("统计先征得同意", home.text)
         self.assertNotIn("已同意统计", home.text)
@@ -160,9 +167,26 @@ class PublicPortalTest(unittest.TestCase):
         self.assertIn('target="_blank" rel="noopener noreferrer"', home.text)
         self.assertEqual(home.headers["Referrer-Policy"], "no-referrer")
         self.assertIn("frame-ancestors 'none'", home.headers["Content-Security-Policy"])
+        self.assertEqual(
+            home.headers["cache-control"],
+            "public, max-age=60, stale-while-revalidate=300",
+        )
+        self.assertEqual(
+            home.headers["cdn-cache-control"],
+            "public, max-age=300, stale-while-revalidate=86400",
+        )
         self.assertEqual(mascot.status_code, 200)
-        self.assertEqual(mascot.headers["content-type"], "image/png")
+        self.assertEqual(mascot.headers["content-type"], "image/webp")
+        self.assertEqual(
+            mascot.headers["cache-control"],
+            "public, max-age=31536000, immutable",
+        )
+        self.assertLessEqual(len(mascot.content), 40_000)
+        self.assertEqual(legacy_mascot.status_code, 200)
+        self.assertEqual(legacy_mascot.headers["content-type"], "image/png")
         self.assertEqual(privacy.status_code, 200)
+        self.assertIn('/api/portal/mascot-v1.webp', privacy.text)
+        self.assertNotIn("cdn-cache-control", privacy.headers)
         self.assertIn("你的论文不是我们的数据", privacy.text)
         self.assertIn("默认匿名计数", privacy.text)
         self.assertIn("不会写入匿名使用统计", privacy.text)

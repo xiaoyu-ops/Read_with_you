@@ -121,6 +121,8 @@ def demo_markup() -> str:
               alt="Attention Is All You Need 第 1 页"
               width="918"
               height="1188"
+              loading="lazy"
+              decoding="async"
             >
             <div
               class="demo-text-layer"
@@ -179,7 +181,7 @@ Transformer 的核心变化不是在 RNN 上叠加注意力，
         </div>
 
         <div class="demo-pet-question" data-demo-question hidden>
-          <img src="/api/portal/mascot.png" alt="" aria-hidden="true">
+          <img src="/api/portal/mascot-v1.webp" alt="" aria-hidden="true" width="46" height="56" loading="lazy" decoding="async">
           <div>
             <span>继续让 Pet 核对</span>
             <button type="button" data-demo-ask>这篇论文的信息足够复现吗？</button>

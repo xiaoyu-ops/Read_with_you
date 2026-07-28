@@ -47,6 +47,10 @@ _MASCOT_PATH = (
     / "mascot"
     / "home-mascot.png"
 )
+_PORTAL_MASCOT_PATH = (
+    Path(__file__).with_name("public_portal_assets")
+    / "home-mascot-v1.webp"
+)
 _GITHUB_INSTALL_URL = "https://github.com/xiaoyu-ops/Read_with_you#本地启动"
 _MAX_TELEMETRY_BODY_BYTES = 2048
 _DOWNLOAD_LABELS = {
@@ -65,6 +69,11 @@ _PORTAL_HEADERS = {
     "X-Frame-Options": "DENY",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
 }
+_HOME_HEADERS = {
+    **_PORTAL_HEADERS,
+    "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+    "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+}
 
 
 def _page(*, title: str, body: str) -> HTMLResponse:
@@ -81,7 +90,7 @@ def _page(*, title: str, body: str) -> HTMLResponse:
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
   <header class="site-header">
-    <a class="brand" href="/" aria-label="陪你读"><span>陪你<em>读</em></span><img class="brand-mascot" src="/api/portal/mascot.png" alt="" aria-hidden="true"></a>
+    <a class="brand" href="/" aria-label="陪你读"><span>陪你<em>读</em></span><img class="brand-mascot" src="/api/portal/mascot-v1.webp" alt="" aria-hidden="true" width="25" height="31" decoding="async"></a>
     <nav class="site-nav" aria-label="门户导航"><a href="/#product-demo">产品演示</a><a href="/#local-core">本地使用</a><a href="/privacy">隐私说明</a><a href="{_GITHUB_INSTALL_URL}" target="_blank" rel="noopener noreferrer">GitHub</a></nav>
   </header>
   {ANALYTICS_SCRIPT}
@@ -103,7 +112,21 @@ async def portal_home() -> HTMLResponse:
             github_url=_GITHUB_INSTALL_URL,
             release_manifest=release_manifest,
         ),
-        headers=_PORTAL_HEADERS,
+        headers=_HOME_HEADERS,
+    )
+
+
+@router.get("/mascot-v1.webp", include_in_schema=False)
+async def portal_optimized_mascot() -> FileResponse:
+    if not _PORTAL_MASCOT_PATH.is_file():
+        raise HTTPException(status_code=404, detail="mascot_not_found")
+    return FileResponse(
+        _PORTAL_MASCOT_PATH,
+        media_type="image/webp",
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

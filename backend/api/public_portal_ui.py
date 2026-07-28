@@ -467,7 +467,7 @@ CORE_STATUS_SCRIPT = r"""
   const checkCore = () => {
     showChecking();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const timer = setTimeout(() => controller.abort(), 2500);
     fetch("http://127.0.0.1:8520/portal-probe", {
       cache:"no-store", mode:"cors", signal:controller.signal,
       targetAddressSpace:"local"
@@ -480,8 +480,16 @@ CORE_STATUS_SCRIPT = r"""
       .catch(showMissing)
       .finally(() => clearTimeout(timer));
   };
+  const scheduleCoreCheck = () => {
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(checkCore, { timeout:1000 });
+      return;
+    }
+    window.setTimeout(checkCore, 0);
+  };
   retry.addEventListener("click", checkCore);
-  checkCore();
+  if (document.readyState === "complete") scheduleCoreCheck();
+  else window.addEventListener("load", scheduleCoreCheck, { once:true });
 })();
 </script>
 """

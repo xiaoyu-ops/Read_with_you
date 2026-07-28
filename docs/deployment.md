@@ -419,6 +419,15 @@ systemctl reload nginx
 `.env`、`data/` 和本地凭据，旧完整服务可以保留作回滚，但公网 Nginx 只能代理
 门户的 `8540`。
 
+首页 `/` 是不含用户内容的固定展示层，源站返回浏览器 60 秒与 CDN 300 秒缓存
+建议；统计、搜索、图谱、发行清单、下载跳转、隐私页和所有内容 API 不沿用该缓存。
+Cloudflare 默认不会缓存 HTML，仅增加响应头仍会得到 `CF-Cache-Status: DYNAMIC`。
+要启用边缘缓存，必须新增范围严格的 Cache Rule：仅匹配正式 hostname、`GET` 方法
+和精确路径 `/`，设置 `Eligible for cache` 并遵守源站
+`Cloudflare-CDN-Cache-Control`。不得使用覆盖 `/api/*` 的 Cache Everything 规则。
+上线验收必须同时确认首页 `Age`/`CF-Cache-Status` 和任一统计、搜索接口仍未被缓存；
+没有该规则权限时只报告“源站已提供缓存契约”，不得声称 Cloudflare 已命中。
+
 ### 公网同步状态与强制收尾清单
 
 当前公网门户是人工部署，不会因为 GitHub `main` 更新而自动重建。以下状态必须
