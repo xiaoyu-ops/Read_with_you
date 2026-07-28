@@ -293,6 +293,34 @@ Windows CI 使用固定 Node、Python、PyInstaller 和 Poppler 版本。两端�
 - 在干净的目标架构 macOS 与 Windows 主机执行安装/卸载烟测；
 - 发布 manifest、artifact SHA-256、第三方运行时版本与许可证。
 
+仓库将无凭据候选构建与公开发布分成两个 Actions：
+
+- `local-core-build.yml` 可由 PR 或手动触发，只拥有 `contents: read`，产物固定为
+  `signed=false` / `notarized=false` 的 7 日候选 Artifact。
+- `local-core-release.yml` 只接受 SemVer 和已审核的 40 位 commit SHA。候选 job
+  通过后，发布 job 必须进入 `production-release` Environment 等待维护者批准；
+  只有该 job 拥有 `contents: write`。
+
+`production-release` 必须配置 required reviewer，并只在该 Environment 保存：
+
+```text
+MACOS_DEVELOPER_ID_CERT_P12_BASE64
+MACOS_DEVELOPER_ID_CERT_PASSWORD
+APPLE_TEAM_ID
+APPLE_API_KEY_ID
+APPLE_API_ISSUER_ID
+APPLE_API_PRIVATE_KEY_BASE64
+```
+
+发布 job 会在临时 keychain 中导入 Developer ID，按嵌套层级从内向外签名
+Mach-O 与 App；仅随包 Node runtime 使用最小 JIT entitlements。随后签名 DMG，
+使用 `notarytool --wait` 公证并 staple，通过 `codesign`、`spctl` 与
+`stapler validate` 后才生成 `signed=true` / `notarized=true` 的最终 provenance
+和门户清单。GitHub Release 先以 draft 创建；全部资产上传成功后才切换为
+prerelease。失败会删除本次草稿及其临时 tag，不能留下半发布状态。
+
+没有以上凭据时不得运行发布 job；构建候选成功不能解除此门槛。
+
 源码运行示例：
 
 ```bash

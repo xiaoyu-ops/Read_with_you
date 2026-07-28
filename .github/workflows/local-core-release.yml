@@ -1,0 +1,283 @@
+name: Release signed macOS Local Core
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer without the v prefix
+        required: true
+        default: 0.1.0-beta.1
+      commit_sha:
+        description: Reviewed 40-character commit SHA
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-core-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    name: Build and verify private candidate
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+
+      - name: Validate immutable release inputs
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          python -c 'import os; from scripts.build_local_core_bundle import normalize_version; value=os.environ["RELEASE_VERSION"]; assert normalize_version(value) == value'
+          if git rev-parse --verify --quiet "refs/tags/v$RELEASE_VERSION"; then
+            echo "Release tag already exists: v$RELEASE_VERSION" >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12.10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install build dependencies
+        run: python -m pip install --disable-pip-version-check -r backend/requirements-local-core.txt pyinstaller==6.16.0
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install pinned Poppler
+        shell: bash
+        run: |
+          conda create --yes --quiet --prefix "$RUNNER_TEMP/peinidu-poppler" --channel conda-forge poppler=24.08.0
+          echo "PEINIDU_POPPLER_BIN=$RUNNER_TEMP/peinidu-poppler/bin" >> "$GITHUB_ENV"
+
+      - name: Set deterministic build timestamp
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct)" >> "$GITHUB_ENV"
+
+      - name: Run packaging and release contract tests
+        run: python -m unittest backend.tests.test_local_core_packaging backend.tests.test_local_core_release backend.tests.test_local_core_launcher backend.tests.test_local_core_gateway
+
+      - name: Build credential-free candidate
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: >-
+          python scripts/build_local_core_bundle.py
+          --version "$RELEASE_VERSION"
+          --node "$(node -p 'process.execPath')"
+          --poppler-bin "$PEINIDU_POPPLER_BIN"
+          --output-dir dist/local-core-candidate
+
+      - name: Verify candidate cannot be publicly trusted
+        shell: bash
+        run: >-
+          python -c
+          "import glob,json;
+          paths=glob.glob('dist/local-core-candidate/*.dmg.manifest.json');
+          assert len(paths)==1, paths;
+          data=json.load(open(paths[0], encoding='utf-8'));
+          assert data['platform']=='darwin' and data['architecture']=='arm64';
+          assert data['signed'] is False and data['notarized'] is False"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: peinidu-macos-private-candidate-${{ inputs.version }}
+          path: |
+            dist/local-core-candidate/*.dmg
+            dist/local-core-candidate/*.dmg.sha256
+            dist/local-core-candidate/*.dmg.manifest.json
+            dist/local-core-candidate/*THIRD_PARTY_NOTICES.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Sign, notarize and publish prerelease
+    needs: candidate
+    runs-on: macos-14
+    environment: production-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12.10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Require protected signing credentials
+        shell: bash
+        env:
+          CERTIFICATE_P12: ${{ secrets.MACOS_DEVELOPER_ID_CERT_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERT_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          for value in \
+            "$CERTIFICATE_P12" \
+            "$CERTIFICATE_PASSWORD" \
+            "$APPLE_TEAM_ID" \
+            "$APPLE_API_KEY_ID" \
+            "$APPLE_API_ISSUER_ID" \
+            "$APPLE_API_PRIVATE_KEY"
+          do
+            test -n "$value"
+          done
+
+      - name: Install build dependencies
+        run: python -m pip install --disable-pip-version-check -r backend/requirements-local-core.txt pyinstaller==6.16.0
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install pinned Poppler
+        shell: bash
+        run: |
+          conda create --yes --quiet --prefix "$RUNNER_TEMP/peinidu-poppler" --channel conda-forge poppler=24.08.0
+          echo "PEINIDU_POPPLER_BIN=$RUNNER_TEMP/peinidu-poppler/bin" >> "$GITHUB_ENV"
+
+      - name: Set deterministic build timestamp
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct)" >> "$GITHUB_ENV"
+
+      - name: Rebuild reviewed candidate
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: >-
+          python scripts/build_local_core_bundle.py
+          --version "$RELEASE_VERSION"
+          --node "$(node -p 'process.execPath')"
+          --poppler-bin "$PEINIDU_POPPLER_BIN"
+          --output-dir dist/local-core-release-candidate
+
+      - name: Import Developer ID and notary credentials
+        shell: bash
+        env:
+          CERTIFICATE_P12: ${{ secrets.MACOS_DEVELOPER_ID_CERT_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERT_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/peinidu-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          notary_key="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$CERTIFICATE_P12" | /usr/bin/base64 -D > "$certificate"
+          printf '%s' "$APPLE_API_PRIVATE_KEY" | /usr/bin/base64 -D > "$notary_key"
+          chmod 600 "$certificate" "$notary_key"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'\"' '/Developer ID Application:/ {print $2; exit}')"
+          test -n "$identity"
+          [[ "$identity" == *"($APPLE_TEAM_ID)" ]]
+          echo "PEINIDU_SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          echo "PEINIDU_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "PEINIDU_NOTARY_KEY=$notary_key" >> "$GITHUB_ENV"
+          rm -f "$certificate"
+
+      - name: Sign, notarize and prepare release assets
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          candidate_manifest="$(find dist/local-core-release-candidate -maxdepth 1 -name '*.dmg.manifest.json' -print -quit)"
+          test -n "$candidate_manifest"
+          python scripts/release_macos_local_core.py \
+            --app dist/local-core-release-candidate/Peinidu.app \
+            --candidate-manifest "$candidate_manifest" \
+            --version "$RELEASE_VERSION" \
+            --commit-sha "$RELEASE_COMMIT" \
+            --identity "$PEINIDU_SIGNING_IDENTITY" \
+            --team-id "$APPLE_TEAM_ID" \
+            --notary-key "$PEINIDU_NOTARY_KEY" \
+            --notary-key-id "$APPLE_API_KEY_ID" \
+            --notary-issuer-id "$APPLE_API_ISSUER_ID" \
+            --output-dir dist/local-core-release
+
+      - name: Verify final assets before GitHub mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "import glob,json; p=glob.glob('dist/local-core-release/*.dmg.manifest.json'); assert len(p)==1; m=json.load(open(p[0], encoding='utf-8')); assert m['signed'] is True and m['notarized'] is True; a=m['artifact']; import hashlib,pathlib; f=pathlib.Path('dist/local-core-release')/a['filename']; assert f.stat().st_size==a['size_bytes']; assert hashlib.sha256(f.read_bytes()).hexdigest()==a['sha256']"
+          python -c "import json; m=json.load(open('dist/local-core-release/release-manifest.json', encoding='utf-8')); d=m['downloads']['macos_arm64']; assert d['signed'] is True and d['notarized'] is True"
+
+      - name: Create draft, upload verified assets, then publish prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          tag="v$RELEASE_VERSION"
+          created=0
+          cleanup() {
+            if [[ "$created" = 1 ]]; then
+              gh release delete "$tag" --yes --cleanup-tag || true
+            fi
+          }
+          trap cleanup ERR
+          gh release create "$tag" \
+            --target "$RELEASE_COMMIT" \
+            --title "陪你读 Local Core $tag" \
+            --notes-file dist/local-core-release/RELEASE_NOTES.md \
+            --draft \
+            --prerelease
+          created=1
+          gh release upload "$tag" \
+            dist/local-core-release/*.dmg \
+            dist/local-core-release/*.dmg.sha256 \
+            dist/local-core-release/*.dmg.manifest.json \
+            dist/local-core-release/*THIRD_PARTY_NOTICES.txt \
+            dist/local-core-release/release-manifest.json
+          gh release edit "$tag" --draft=false --prerelease
+          trap - ERR
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${PEINIDU_NOTARY_KEY:-}"
+          if [[ -n "${PEINIDU_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$PEINIDU_SIGNING_KEYCHAIN" || true
+          fi

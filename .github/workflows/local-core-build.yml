@@ -1,6 +1,14 @@
 name: Build local Pet Core
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/local-core-build.yml"
+      - "backend/**"
+      - "config/**"
+      - "frontend/**"
+      - "scripts/build_local_core_bundle.py"
+      - "scripts/peinidu_local_core.py"
   workflow_dispatch:
     inputs:
       version:
@@ -10,6 +18,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  PEINIDU_BUILD_VERSION: ${{ inputs.version || '0.1.0-dev' }}
 
 jobs:
   bundle:
@@ -78,14 +89,27 @@ jobs:
         shell: bash
         run: >-
           python scripts/build_local_core_bundle.py
-          --version "${{ inputs.version }}"
+          --version "$PEINIDU_BUILD_VERSION"
           --node "$(node -p 'process.execPath')"
           --poppler-bin "$PEINIDU_POPPLER_BIN"
+
+      - name: Verify candidate remains private and untrusted
+        shell: bash
+        run: >-
+          python -c
+          "import glob,json;
+          paths=glob.glob('dist/local-core/*.manifest.json');
+          assert len(paths)==1, paths;
+          data=json.load(open(paths[0], encoding='utf-8'));
+          assert data['signed'] is False and data['notarized'] is False"
 
       - uses: actions/upload-artifact@v4
         with:
           name: peinidu-local-core-${{ runner.os }}-${{ runner.arch }}
           path: |
+            dist/local-core/*.dmg
             dist/local-core/*.zip
+            dist/local-core/*.sha256
             dist/local-core/*.manifest.json
+            dist/local-core/*THIRD_PARTY_NOTICES.txt
           if-no-files-found: error
