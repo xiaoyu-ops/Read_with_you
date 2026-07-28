@@ -15,7 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from scripts import build_local_core_bundle as bundle
+if __package__:
+    from scripts import build_local_core_bundle as bundle
+else:
+    import build_local_core_bundle as bundle
 
 
 ROOT = Path(__file__).resolve().parents[1]

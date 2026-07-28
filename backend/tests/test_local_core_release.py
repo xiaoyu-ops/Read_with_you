@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +12,19 @@ from scripts import release_macos_local_core as release
 
 
 class LocalCoreReleaseTest(unittest.TestCase):
+    def test_release_script_can_run_as_a_file(self) -> None:
+        script = release.ROOT / "scripts" / "release_macos_local_core.py"
+        result = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            cwd=release.ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.assertIn("usage:", result.stdout)
+        self.assertIn("--version", result.stdout)
+
     def test_signing_is_inside_out_and_node_receives_jit_entitlements(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             app = Path(tmp) / "Peinidu.app"
