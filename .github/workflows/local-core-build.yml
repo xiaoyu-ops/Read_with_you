@@ -93,6 +93,13 @@ jobs:
           Expand-Archive -Path $archive -DestinationPath $target
           $binary = Get-ChildItem -Path $target -Filter pdftotext.exe -Recurse | Select-Object -First 1
           if (-not $binary) { throw "pdftotext.exe missing from Poppler archive" }
+          $popplerRoot = Split-Path -Parent (Split-Path -Parent $binary.DirectoryName)
+          $licenseUrl = "https://invent.kde.org/mirrors/poppler/-/raw/poppler-24.08.0/COPYING"
+          $licensePath = Join-Path $popplerRoot "COPYING"
+          Invoke-WebRequest -Uri $licenseUrl -OutFile $licensePath
+          $licenseActual = (Get-FileHash -Algorithm SHA256 $licensePath).Hash.ToLowerInvariant()
+          $licenseExpected = "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6"
+          if ($licenseActual -ne $licenseExpected) { throw "Poppler license checksum mismatch" }
           "PEINIDU_POPPLER_BIN=$($binary.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Set deterministic build timestamp

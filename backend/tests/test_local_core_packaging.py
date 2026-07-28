@@ -14,7 +14,7 @@ class LocalCorePackagingTest(unittest.TestCase):
         self.assertEqual(bundle.npm_executable_name("nt"), "npm.cmd")
         self.assertEqual(bundle.npm_executable_name("posix"), "npm")
 
-    def test_build_workflow_bootstraps_pinned_miniforge_on_macos(self) -> None:
+    def test_build_workflow_bootstraps_pinned_runtimes_and_licenses(self) -> None:
         workflow = bundle.ROOT / ".github" / "workflows" / "local-core-build.yml"
         text = workflow.read_text(encoding="utf-8")
         setup = (
@@ -25,15 +25,17 @@ class LocalCorePackagingTest(unittest.TestCase):
         self.assertIn("miniforge-version: 25.3.1-0", text)
         self.assertIn("--override-channels --channel conda-forge poppler=24.08.0", text)
         self.assertIn('"$RUNNER_TEMP/peinidu-poppler/bin/pdftotext" -v', text)
-        self.assertIn(
+        license_url = (
             "https://invent.kde.org/mirrors/poppler/-/raw/"
-            "poppler-24.08.0/COPYING",
-            text,
+            "poppler-24.08.0/COPYING"
         )
-        self.assertIn(
-            "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6",
-            text,
+        license_sha256 = (
+            "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6"
         )
+        self.assertEqual(text.count(license_url), 2)
+        self.assertEqual(text.count(license_sha256), 2)
+        self.assertIn('$licensePath = Join-Path $popplerRoot "COPYING"', text)
+        self.assertIn("Poppler license checksum mismatch", text)
         self.assertLess(text.index(setup), text.index("Install pinned Poppler on macOS"))
 
     def test_release_asset_names_are_versioned_and_architecture_is_canonical(self) -> None:
