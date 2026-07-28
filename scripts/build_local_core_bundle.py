@@ -30,6 +30,12 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
 DEFAULT_DIST_DIR = ROOT / "dist" / "local-core"
 APP_NAME = "Peinidu"
+DMG_VOLUME_NAME = "陪你读"
+_SEMVER_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 _TEXT_SCAN_SUFFIXES = {
     ".css",
     ".html",
@@ -59,6 +65,56 @@ _FORBIDDEN_LOCAL_API_BASE = b"http://127.0.0.1:8000"
 
 class BundleError(RuntimeError):
     pass
+
+
+def normalize_version(value: str) -> str:
+    version = value.strip().removeprefix("v")
+    if not _SEMVER_RE.fullmatch(version):
+        raise BundleError(f"Local Core version must be SemVer: {value!r}")
+    return version
+
+
+def normalized_platform(
+    system_name: str | None = None,
+    machine_name: str | None = None,
+) -> tuple[str, str]:
+    system_value = (system_name or platform.system()).strip().lower()
+    machine_value = (machine_name or platform.machine()).strip().lower()
+    system_aliases = {
+        "darwin": "darwin",
+        "windows": "windows",
+    }
+    architecture_aliases = {
+        "aarch64": "arm64",
+        "arm64": "arm64",
+        "amd64": "x64",
+        "x64": "x64",
+        "x86_64": "x64",
+    }
+    normalized_system = system_aliases.get(system_value)
+    normalized_architecture = architecture_aliases.get(machine_value)
+    if normalized_system is None or normalized_architecture is None:
+        raise BundleError(
+            "Unsupported release target: "
+            f"{system_name or platform.system()} / {machine_name or platform.machine()}"
+        )
+    if normalized_system == "darwin" and normalized_architecture != "arm64":
+        raise BundleError("The first public macOS release only supports Apple Silicon")
+    return normalized_system, normalized_architecture
+
+
+def release_asset_stem(
+    version: str,
+    *,
+    system_name: str | None = None,
+    machine_name: str | None = None,
+) -> str:
+    normalized_version = normalize_version(version)
+    system_value, architecture = normalized_platform(system_name, machine_name)
+    return (
+        f"peinidu-local-core-v{normalized_version}-"
+        f"{system_value}-{architecture}"
+    )
 
 
 def _run(command: Sequence[str], *, cwd: Path = ROOT, env: dict | None = None) -> None:
@@ -555,6 +611,8 @@ def build_manifest(
     build_epoch: int,
     third_party: list[dict],
 ) -> dict:
+    normalized_version = normalize_version(version)
+    system_value, architecture = normalized_platform()
     files: list[dict] = []
     for path in sorted(bundle_root.rglob("*")):
         if path.is_dir():
@@ -583,11 +641,12 @@ def build_manifest(
     return {
         "schema_version": 1,
         "product": "Peinidu Local Core",
-        "version": version,
-        "platform": platform.system().lower(),
-        "architecture": platform.machine().lower(),
+        "version": normalized_version,
+        "platform": system_value,
+        "architecture": architecture,
         "build_epoch": build_epoch,
         "signed": False,
+        "notarized": False,
         "third_party": third_party,
         "files": files,
     }
@@ -603,13 +662,14 @@ def write_manifest(destination: Path, manifest: dict) -> Path:
 
 
 def finalize_bundle(bundle_root: Path, *, version: str) -> None:
+    normalized_version = normalize_version(version)
     resources = _resource_root(bundle_root)
     (resources / "release-info.json").write_text(
         json.dumps(
             {
                 "schema_version": 1,
                 "product": "Peinidu Local Core",
-                "version": version,
+                "version": normalized_version,
             },
             ensure_ascii=False,
             indent=2,
@@ -667,6 +727,68 @@ def write_reproducible_zip(source: Path, destination: Path, *, epoch: int) -> No
                     archive.writestr(info, handle.read())
 
 
+def write_third_party_notices(destination: Path, third_party: list[dict]) -> Path:
+    lines = [
+        "陪你读 / Peinidu Local Core",
+        "Third-party runtime notices",
+        "",
+        "The corresponding license files are included inside Peinidu.app.",
+        "",
+    ]
+    for item in sorted(third_party, key=lambda value: str(value.get("name", ""))):
+        name = str(item.get("name", "Unknown component"))
+        version = str(item.get("version", "unknown"))
+        license_path = str(item.get("license", "license path unavailable"))
+        lines.extend((f"- {name} {version}", f"  License: {license_path}"))
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return destination
+
+
+def create_macos_dmg(
+    bundle_root: Path,
+    destination: Path,
+    *,
+    third_party_notices: Path,
+) -> Path:
+    if bundle_root.suffix != ".app" or not bundle_root.is_dir():
+        raise BundleError(f"macOS application bundle missing: {bundle_root}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="peinidu-dmg-") as tmp:
+        staging = Path(tmp) / "volume"
+        staging.mkdir()
+        _copy_tree(bundle_root, staging / bundle_root.name)
+        shutil.copy2(third_party_notices, staging / "THIRD_PARTY_NOTICES.txt")
+        os.symlink("/Applications", staging / "Applications")
+        _run(
+            [
+                "hdiutil",
+                "create",
+                "-quiet",
+                "-volname",
+                DMG_VOLUME_NAME,
+                "-srcfolder",
+                str(staging),
+                "-ov",
+                "-format",
+                "UDZO",
+                str(destination),
+            ]
+        )
+    if not destination.is_file() or destination.stat().st_size <= 0:
+        raise BundleError(f"macOS DMG was not created: {destination}")
+    return destination
+
+
+def write_sha256_sidecar(artifact: Path) -> Path:
+    destination = artifact.with_name(f"{artifact.name}.sha256")
+    destination.write_text(
+        f"{_sha256_file(artifact)}  {artifact.name}\n",
+        encoding="ascii",
+    )
+    return destination
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build a Peinidu local Core bundle")
     parser.add_argument("--version", required=True)
@@ -692,6 +814,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if sys.platform != "darwin" and os.name != "nt":
         raise BundleError("Run the local Core builder on macOS or Windows")
+    version = normalize_version(args.version)
     output_dir = args.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     frontend_build = (
@@ -713,30 +836,62 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_dir=output_dir,
         )
         scan_bundle(bundle_root)
-        finalize_bundle(bundle_root, version=args.version)
+        finalize_bundle(bundle_root, version=version)
         check_frozen_runtime(bundle_root)
         manifest = build_manifest(
             bundle_root,
-            version=args.version,
+            version=version,
             build_epoch=args.source_date_epoch,
             third_party=third_party,
         )
-        archive = output_dir / (
-            f"peinidu-local-core-{args.version}-{manifest['platform']}-{manifest['architecture']}.zip"
+        asset_stem = release_asset_stem(
+            version,
+            system_name=manifest["platform"],
+            machine_name=manifest["architecture"],
         )
-        write_reproducible_zip(bundle_root, archive, epoch=args.source_date_epoch)
-        manifest["archive"] = archive.name
-        manifest["archive_sha256"] = _sha256_file(archive)
+        notices = write_third_party_notices(
+            output_dir / f"{asset_stem}-THIRD_PARTY_NOTICES.txt",
+            third_party,
+        )
+        if manifest["platform"] == "darwin":
+            artifact = create_macos_dmg(
+                bundle_root,
+                output_dir / f"{asset_stem}.dmg",
+                third_party_notices=notices,
+            )
+            media_type = "application/x-apple-diskimage"
+        else:
+            artifact = output_dir / f"{asset_stem}.zip"
+            write_reproducible_zip(
+                bundle_root,
+                artifact,
+                epoch=args.source_date_epoch,
+            )
+            media_type = "application/zip"
+        artifact_sha256 = _sha256_file(artifact)
+        sha256_path = write_sha256_sidecar(artifact)
+        manifest["artifact"] = {
+            "filename": artifact.name,
+            "media_type": media_type,
+            "size_bytes": artifact.stat().st_size,
+            "sha256": artifact_sha256,
+        }
+        # Preserve the v1 archive keys for existing tooling.
+        manifest["archive"] = artifact.name
+        manifest["archive_sha256"] = artifact_sha256
         manifest_path = write_manifest(
-            output_dir / f"{archive.name}.manifest.json",
+            output_dir / f"{artifact.name}.manifest.json",
             manifest,
         )
         summary = {
             "bundle": str(bundle_root),
-            "archive": str(archive),
+            "artifact": str(artifact),
+            "sha256": str(sha256_path),
             "manifest": str(manifest_path),
-            "archive_sha256": manifest["archive_sha256"],
+            "third_party_notices": str(notices),
+            "artifact_sha256": artifact_sha256,
             "signed": False,
+            "notarized": False,
         }
         print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0

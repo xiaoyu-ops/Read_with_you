@@ -4,11 +4,34 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import build_local_core_bundle as bundle
 
 
 class LocalCorePackagingTest(unittest.TestCase):
+    def test_release_asset_names_are_versioned_and_architecture_is_canonical(self) -> None:
+        self.assertEqual(
+            bundle.release_asset_stem(
+                "v0.1.0-beta.1",
+                system_name="Darwin",
+                machine_name="aarch64",
+            ),
+            "peinidu-local-core-v0.1.0-beta.1-darwin-arm64",
+        )
+        self.assertEqual(
+            bundle.release_asset_stem(
+                "0.1.0-beta.1",
+                system_name="Windows",
+                machine_name="AMD64",
+            ),
+            "peinidu-local-core-v0.1.0-beta.1-windows-x64",
+        )
+        with self.assertRaisesRegex(bundle.BundleError, "SemVer"):
+            bundle.normalize_version("../../release")
+        with self.assertRaisesRegex(bundle.BundleError, "Apple Silicon"):
+            bundle.normalized_platform("Darwin", "x86_64")
+
     def test_copy_frontend_standalone_preserves_dist_and_public_assets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -85,12 +108,17 @@ class LocalCorePackagingTest(unittest.TestCase):
             root.mkdir()
             executable = root / "Peinidu.exe"
             executable.write_bytes(b"binary")
-            manifest = bundle.build_manifest(
-                root,
-                version="0.1.0",
-                build_epoch=315532800,
-                third_party=[],
-            )
+            with patch.object(
+                bundle,
+                "normalized_platform",
+                return_value=("windows", "x64"),
+            ):
+                manifest = bundle.build_manifest(
+                    root,
+                    version="0.1.0",
+                    build_epoch=315532800,
+                    third_party=[],
+                )
             manifest_path = Path(tmp) / "release-manifest.json"
             bundle.write_manifest(manifest_path, manifest)
             first = Path(tmp) / "first.zip"
@@ -102,7 +130,57 @@ class LocalCorePackagingTest(unittest.TestCase):
             self.assertEqual(manifest["files"][0]["sha256"], bundle._sha256_file(executable))
             saved = json.loads(manifest_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["version"], "0.1.0")
+            self.assertEqual(saved["architecture"], "x64")
             self.assertFalse(saved["signed"])
+            self.assertFalse(saved["notarized"])
+
+    def test_candidate_dmg_contains_applications_link_and_notices(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            app = root / "Peinidu.app"
+            (app / "Contents" / "MacOS").mkdir(parents=True)
+            (app / "Contents" / "MacOS" / "Peinidu").write_bytes(b"binary")
+            notices = bundle.write_third_party_notices(
+                root / "notices.txt",
+                [
+                    {
+                        "name": "Node.js",
+                        "version": "v22.14.0",
+                        "license": "third_party/node/LICENSE",
+                    }
+                ],
+            )
+            destination = root / "candidate.dmg"
+            observed: dict[str, object] = {}
+
+            def fake_run(command, *, cwd=bundle.ROOT, env=None):
+                observed["command"] = list(command)
+                staging = Path(command[command.index("-srcfolder") + 1])
+                observed["has_app"] = (staging / "Peinidu.app").is_dir()
+                observed["applications_target"] = (
+                    staging / "Applications"
+                ).readlink()
+                observed["notices"] = (
+                    staging / "THIRD_PARTY_NOTICES.txt"
+                ).read_text(encoding="utf-8")
+                Path(command[-1]).write_bytes(b"candidate dmg")
+
+            with patch.object(bundle, "_run", side_effect=fake_run):
+                bundle.create_macos_dmg(
+                    app,
+                    destination,
+                    third_party_notices=notices,
+                )
+
+            sidecar = bundle.write_sha256_sidecar(destination)
+            self.assertEqual(observed["command"][0], "hdiutil")
+            self.assertTrue(observed["has_app"])
+            self.assertEqual(observed["applications_target"], Path("/Applications"))
+            self.assertIn("Node.js v22.14.0", observed["notices"])
+            self.assertEqual(
+                sidecar.read_text(encoding="ascii"),
+                f"{bundle._sha256_file(destination)}  candidate.dmg\n",
+            )
 
 
 if __name__ == "__main__":

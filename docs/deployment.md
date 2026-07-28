@@ -278,14 +278,20 @@ Windows CI 使用固定 Node、Python、PyInstaller 和 Poppler 版本。两端�
 
 1. 运行冻结程序 `--check-runtime`，验证 Node、Next、Poppler 与 LiteLLM 可导入。
 2. 扫描包内 `.env`、用户数据目录名、当前环境凭据值和常见静态 key 形态。
-3. 生成包含每个文件 SHA-256 的外部 manifest 与可重复时间戳压缩包。
+3. 生成包含每个文件 SHA-256 的外部 provenance manifest、artifact SHA-256
+   sidecar 和第三方运行时说明。
+4. Apple Silicon macOS 候选构建生成
+   `peinidu-local-core-v<version>-darwin-arm64.dmg`，DMG 内提供
+   `Applications` 拖放入口；Windows 候选仍生成版本化 zip。
 
-这只是可审计的开发发行流程，不等于平台信任链。面向普通用户公开下载前仍需：
+候选 manifest 固定写入 `signed=false`、`notarized=false`。ad-hoc 签名只保证本地
+构建后的文件一致性，不等于平台信任链，也不得作为普通用户下载发布。面向普通用户
+公开下载前仍需：
 
 - Apple Developer ID 签名与 notarization；
 - Windows Authenticode 签名；
-- 在干净的 Intel/Apple Silicon macOS 与 Windows 主机执行安装/卸载烟测；
-- 发布 manifest、压缩包 SHA-256、第三方运行时版本与许可证。
+- 在干净的目标架构 macOS 与 Windows 主机执行安装/卸载烟测；
+- 发布 manifest、artifact SHA-256、第三方运行时版本与许可证。
 
 源码运行示例：
 
