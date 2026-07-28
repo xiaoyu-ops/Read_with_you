@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from html import escape
+from typing import Any
 
 
 MINIMAL_CSS = r"""
@@ -29,6 +30,7 @@ body {
 }
 a { color:inherit }
 button,input { color:inherit; font:inherit }
+[hidden] { display:none !important }
 a:focus-visible,button:focus-visible,input:focus-visible {
   outline:2px solid var(--focus); outline-offset:4px;
 }
@@ -162,6 +164,30 @@ h1 {
 }
 .core-copy>p { max-width:690px; margin-bottom:0; color:var(--muted); font-size:14px }
 .core-copy>p+p { margin-top:12px }
+.release-kicker {
+  margin:0 0 12px; color:var(--accent);
+  font:650 11px/1.5 ui-monospace,monospace; letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.install-steps {
+  max-width:760px; margin:28px 0 0; padding:0; list-style:none;
+  display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--ink);
+  counter-reset:install-step;
+}
+.install-steps li {
+  min-height:112px; padding:18px 20px 18px 0; border-right:1px solid var(--line);
+  counter-increment:install-step; color:var(--muted); font-size:13px;
+}
+.install-steps li+li { padding-left:20px }
+.install-steps li:last-child { border-right:0 }
+.install-steps li::before {
+  content:"0" counter(install-step); display:block; margin-bottom:22px;
+  color:var(--accent); font:650 11px/1 ui-monospace,monospace;
+}
+.browser-compat {
+  max-width:690px; margin-top:16px !important; color:var(--ink) !important;
+  padding-left:13px; border-left:2px solid var(--accent);
+}
 .core-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px }
 .core-state {
   margin:0; padding:72px 0 72px 28px; border-left:1px solid var(--line);
@@ -244,6 +270,12 @@ code { padding:1px 4px; background:var(--soft); font:500 .92em ui-monospace,mono
   .minimal-core { grid-template-columns:1fr }
   .core-index { padding:62px 0 14px }
   .core-copy { padding:20px 0 48px; border-left:0 }
+  .install-steps { grid-template-columns:1fr }
+  .install-steps li,.install-steps li+li {
+    min-height:0; padding:18px 0; border-right:0; border-bottom:1px solid var(--line);
+  }
+  .install-steps li:last-child { border-bottom:0 }
+  .install-steps li::before { margin-bottom:10px }
   .core-state { grid-column:1; padding:24px 0 48px; border-left:0; border-top:1px solid var(--line) }
   .principles { padding:68px 0 80px }
   .section-head { grid-template-columns:1fr; gap:14px }
@@ -267,8 +299,60 @@ def minimal_home_document(
     analytics_script: str,
     core_script: str,
     github_url: str,
+    release_manifest: dict[str, Any] | None,
 ) -> str:
     github = escape(github_url, quote=True)
+    mac_release = (release_manifest or {}).get("downloads", {}).get("macos_arm64")
+    has_mac_release = isinstance(mac_release, dict)
+    if has_mac_release:
+        version = escape(str(release_manifest["version"]))
+        release_url = escape(str(release_manifest["release_url"]), quote=True)
+        install_href = "/api/portal/download/macos_arm64"
+        install_label = "下载 macOS Beta"
+        release_status = (
+            f'<p class="release-kicker">v{version} · Developer ID signed · '
+            "Apple notarized</p>"
+        )
+        install_guidance = """<ol class="install-steps" aria-label="安装步骤">
+          <li>打开下载的 DMG</li>
+          <li>将 Peinidu.app 拖入 Applications</li>
+          <li>启动陪你读，再返回检查 Core</li>
+        </ol>"""
+        core_install_actions = f"""
+          <a class="button primary" href="{install_href}">下载 Apple 芯片 Mac Beta</a>
+          <a class="button" href="{release_url}" target="_blank" rel="noopener noreferrer">查看 Release notes ↗</a>
+          <a class="button" href="{github}" target="_blank" rel="noopener noreferrer">开发者源码安装 ↗</a>"""
+        hero_release_link = (
+            f'<a href="{release_url}" target="_blank" '
+            'rel="noopener noreferrer">查看当前 Beta 与完整校验信息 →</a>'
+        )
+    else:
+        install_href = github
+        install_label = "查看开发者源码安装"
+        release_status = (
+            '<p class="release-kicker">当前公开安装方式 · Developer source setup</p>'
+        )
+        install_guidance = ""
+        core_install_actions = f"""
+          <a class="button primary" href="{github}" target="_blank" rel="noopener noreferrer">查看开发者源码安装 ↗</a>"""
+        hero_release_link = (
+            '<a href="#local-core">查看本地启动说明 ↓</a>'
+        )
+    install_target = (
+        ""
+        if has_mac_release
+        else ' target="_blank" rel="noopener noreferrer"'
+    )
+    browser_script = r"""
+<script>
+(() => {
+  const warning = document.getElementById("browser-compat");
+  if (!warning) return;
+  const value = navigator.userAgent || "";
+  const chromium = /(Chrome|Chromium|CriOS|Edg|OPR)\//.test(value);
+  warning.hidden = chromium;
+})();
+</script>"""
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -306,13 +390,13 @@ def minimal_home_document(
         <p>在原始 PDF 上阅读、翻译和记录判断，再让 Pet 帮你沿着证据核对方法与复现条件。</p>
         <div class="hero-actions">
           <a id="open-core" class="minimal-button is-primary" href="http://127.0.0.1:8520" target="_blank" rel="noopener noreferrer">尝试打开本地工作台</a>
-          <a id="install-core" class="minimal-button" href="{github}" target="_blank" rel="noopener noreferrer">前往 GitHub 安装 / 启动</a>
+          <a id="install-core" class="minimal-button" href="{install_href}"{install_target}>{install_label}</a>
         </div>
       </div>
       <aside class="hero-aside">
         <strong>网页入口，本地工作</strong>
         <p>本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
-        <a href="#product-demo">看看精读与证据分析怎么工作 ↓</a>
+        {hero_release_link}
       </aside>
     </section>
 
@@ -328,11 +412,14 @@ def minimal_home_document(
     <section id="local-core" class="minimal-core" aria-labelledby="local-core-title">
       <p class="core-index">04 / Local core</p>
       <div class="core-copy">
+        {release_status}
         <h2 id="local-core-title">先启动，再打开。</h2>
         <p>网页只能确认本机 <code>127.0.0.1:8520</code> 的 Core 是否正在运行，不能静默读取电脑里是否装过应用。已经安装时请先启动 Core；尚未安装时再前往 GitHub。</p>
         <p>Chrome 首次检查时可能询问是否允许本站访问本地网络；该权限只用于连接这台电脑上的 <code>127.0.0.1</code> Core。即使检测被浏览器拦截，也可以直接尝试打开本地工作台。</p>
+        <p id="browser-compat" class="browser-compat" hidden>当前浏览器不是 Chrome/Chromium。你仍可下载安装，但本地网络检测和本地文件夹能力建议使用最新版 Chrome；网页无法判断电脑里是否安装过 Chrome。</p>
+        {install_guidance}
         <div class="core-actions">
-          <a class="button primary" href="{github}" target="_blank" rel="noopener noreferrer">查看 GitHub 安装流程 ↗</a>
+          {core_install_actions}
           <button id="retry-core" class="button" type="button">重新检查本地 Core</button>
         </div>
       </div>
@@ -358,6 +445,6 @@ def minimal_home_document(
     <a href="/privacy">隐私说明</a>
   </footer>
 </div>
-{core_script}
+{core_script}{browser_script}
 </body>
 </html>"""

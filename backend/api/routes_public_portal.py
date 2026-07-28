@@ -93,6 +93,7 @@ def _page(*, title: str, body: str) -> HTMLResponse:
 
 
 async def portal_home() -> HTMLResponse:
+    release_manifest = await asyncio.to_thread(load_release_manifest)
     return HTMLResponse(
         minimal_home_document(
             demo_css=DEMO_CSS,
@@ -100,6 +101,7 @@ async def portal_home() -> HTMLResponse:
             analytics_script=ANALYTICS_SCRIPT,
             core_script=CORE_STATUS_SCRIPT,
             github_url=_GITHUB_INSTALL_URL,
+            release_manifest=release_manifest,
         ),
         headers=_PORTAL_HEADERS,
     )
@@ -242,13 +244,20 @@ async def latest_release() -> dict:
     if manifest is None:
         raise HTTPException(status_code=503, detail="release_not_configured")
     return {
+        "schema_version": manifest["schema_version"],
+        "channel": manifest["channel"],
         "version": manifest["version"],
+        "release_url": manifest["release_url"],
+        "published_at": manifest["published_at"],
         "downloads": [
             {
                 "platform": platform_name,
+                "filename": item["filename"],
                 "download_url": f"/api/portal/download/{platform_name}",
                 "sha256": item["sha256"],
                 "size_bytes": item["size_bytes"],
+                "signed": item["signed"],
+                "notarized": item["notarized"],
             }
             for platform_name, item in sorted(manifest["downloads"].items())
         ],

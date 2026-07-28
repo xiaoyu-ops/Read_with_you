@@ -413,6 +413,11 @@ CORE_STATUS_SCRIPT = r"""
   const readers = document.getElementById("total-reader-opens");
   const usageFields = [visits, starts, readers].filter(Boolean);
   const formatCount = value => new Intl.NumberFormat("zh-CN").format(Number(value) || 0);
+  const setPrimary = (element, primary) => {
+    element.classList.toggle("primary", primary);
+    element.classList.toggle("is-primary", primary);
+    element.classList.toggle("secondary", !primary);
+  };
 
   const loadUsage = async () => {
     try {
@@ -438,9 +443,8 @@ CORE_STATUS_SCRIPT = r"""
     status.querySelector("span:last-child").textContent = "未检测到正在运行的本地 Core";
     open.hidden = false;
     open.textContent = "尝试打开本地工作台";
-    open.classList.remove("primary");
-    open.classList.add("secondary");
-    install.classList.add("primary");
+    setPrimary(open, false);
+    setPrimary(install, true);
     retry.disabled = false;
     retry.textContent = "重新检查本地 Core";
   };
@@ -449,10 +453,8 @@ CORE_STATUS_SCRIPT = r"""
     status.querySelector("span:last-child").textContent = "已检测到本地 Core";
     open.hidden = false;
     open.textContent = "打开本地工作台";
-    open.classList.add("primary");
-    open.classList.remove("secondary");
-    install.classList.remove("primary");
-    install.classList.add("secondary");
+    setPrimary(open, true);
+    setPrimary(install, false);
     retry.disabled = false;
     retry.textContent = "重新检查本地 Core";
   };

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import threading
 from contextlib import closing
@@ -17,6 +18,14 @@ from .contracts import PortalTelemetryEvent
 _LOCK = threading.Lock()
 _RETENTION_DAYS = 35
 _ALLOWED_DOWNLOAD_PLATFORMS = {"macos_arm64", "windows_x64"}
+_RELEASE_REPOSITORY_URL = "https://github.com/xiaoyu-ops/Read_with_you"
+_SEMVER_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
+_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_SAFE_RELEASE_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,159}$")
 
 
 def database_path() -> Path:
@@ -188,29 +197,76 @@ def load_release_manifest() -> dict[str, Any] | None:
         return None
     if not isinstance(payload, dict):
         return None
+    schema_version = payload.get("schema_version")
+    channel = payload.get("channel")
     version = payload.get("version")
+    release_url = payload.get("release_url")
+    published_at = payload.get("published_at")
     downloads = payload.get("downloads")
-    if not isinstance(version, str) or not version or not isinstance(downloads, dict):
+    if (
+        schema_version != 1
+        or channel not in {"beta", "stable"}
+        or not isinstance(version, str)
+        or not _SEMVER_RE.fullmatch(version)
+        or not isinstance(release_url, str)
+        or release_url
+        != f"{_RELEASE_REPOSITORY_URL}/releases/tag/v{version}"
+        or not isinstance(published_at, str)
+        or not isinstance(downloads, dict)
+    ):
         return None
-    normalized: dict[str, Any] = {"version": version, "downloads": {}}
+    try:
+        published = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if published.tzinfo is None:
+        return None
+    normalized: dict[str, Any] = {
+        "schema_version": 1,
+        "channel": channel,
+        "version": version,
+        "release_url": release_url,
+        "published_at": published.isoformat(),
+        "downloads": {},
+    }
     for platform_name in _ALLOWED_DOWNLOAD_PLATFORMS:
         item = downloads.get(platform_name)
         if not isinstance(item, dict):
             continue
+        filename = item.get("filename")
         url = item.get("url")
         sha256 = item.get("sha256")
         size_bytes = item.get("size_bytes")
+        signed = item.get("signed")
+        notarized = item.get("notarized")
+        expected_suffix = ".dmg" if platform_name == "macos_arm64" else ".zip"
+        expected_url = (
+            f"{_RELEASE_REPOSITORY_URL}/releases/download/"
+            f"v{version}/{filename}"
+        )
         if (
-            isinstance(url, str)
-            and url.startswith("https://")
+            isinstance(filename, str)
+            and _SAFE_RELEASE_FILENAME_RE.fullmatch(filename)
+            and filename.endswith(expected_suffix)
+            and isinstance(url, str)
+            and url == expected_url
             and isinstance(sha256, str)
-            and len(sha256) == 64
+            and _SHA256_RE.fullmatch(sha256)
             and isinstance(size_bytes, int)
             and size_bytes > 0
+            and signed is True
+            and (
+                notarized is True
+                if platform_name == "macos_arm64"
+                else notarized in {False, None}
+            )
         ):
             normalized["downloads"][platform_name] = {
+                "filename": filename,
                 "url": url,
-                "sha256": sha256,
+                "sha256": sha256.lower(),
                 "size_bytes": size_bytes,
+                "signed": True,
+                "notarized": notarized is True,
             }
     return normalized if normalized["downloads"] else None

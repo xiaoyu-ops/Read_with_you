@@ -24,17 +24,30 @@ class PublicPortalTest(unittest.TestCase):
         self.manifest.write_text(
             json.dumps(
                 {
-                    "version": "0.2.0",
+                    "schema_version": 1,
+                    "channel": "beta",
+                    "version": "0.1.0-beta.1",
+                    "release_url": (
+                        "https://github.com/xiaoyu-ops/Read_with_you/releases/tag/"
+                        "v0.1.0-beta.1"
+                    ),
+                    "published_at": "2026-07-28T12:00:00+00:00",
                     "downloads": {
                         "macos_arm64": {
-                            "url": "https://downloads.example.com/peinidu-mac.zip",
+                            "filename": (
+                                "peinidu-local-core-v0.1.0-beta.1-"
+                                "darwin-arm64.dmg"
+                            ),
+                            "url": (
+                                "https://github.com/xiaoyu-ops/Read_with_you/"
+                                "releases/download/v0.1.0-beta.1/"
+                                "peinidu-local-core-v0.1.0-beta.1-"
+                                "darwin-arm64.dmg"
+                            ),
                             "sha256": "a" * 64,
                             "size_bytes": 1024,
-                        },
-                        "windows_x64": {
-                            "url": "https://downloads.example.com/peinidu-win.zip",
-                            "sha256": "b" * 64,
-                            "size_bytes": 2048,
+                            "signed": True,
+                            "notarized": True,
                         },
                     },
                 }
@@ -117,7 +130,14 @@ class PublicPortalTest(unittest.TestCase):
         self.assertIn("如果这个方向对你有帮助，欢迎 Star", home.text)
         self.assertIn("https://github.com/xiaoyu-ops/Read_with_you", home.text)
         self.assertIn("先启动，再打开", home.text)
-        self.assertIn("前往 GitHub 安装 / 启动", home.text)
+        self.assertIn("下载 macOS Beta", home.text)
+        self.assertIn("下载 Apple 芯片 Mac Beta", home.text)
+        self.assertIn("将 Peinidu.app 拖入 Applications", home.text)
+        self.assertIn("查看 Release notes", home.text)
+        self.assertIn("开发者源码安装", home.text)
+        self.assertIn("v0.1.0-beta.1", home.text)
+        self.assertIn("Developer ID signed", home.text)
+        self.assertIn("Apple notarized", home.text)
         self.assertIn("https://github.com/xiaoyu-ops/Read_with_you#本地启动", home.text)
         self.assertIn("http://127.0.0.1:8520/portal-probe", home.text)
         self.assertIn('id="open-core"', home.text)
@@ -125,6 +145,7 @@ class PublicPortalTest(unittest.TestCase):
         self.assertIn("网页只能确认本机", home.text)
         self.assertIn("不能静默读取电脑里是否装过应用", home.text)
         self.assertIn("即使检测被浏览器拦截，也可以直接尝试打开本地工作台", home.text)
+        self.assertIn("网页无法判断电脑里是否安装过 Chrome", home.text)
         self.assertIn('targetAddressSpace:"local"', home.text)
         self.assertIn('/api/portal/mascot.png', home.text)
         self.assertNotIn("PRIVACY RECEIPT", home.text)
@@ -212,7 +233,10 @@ class PublicPortalTest(unittest.TestCase):
         self.assertNotIn("安装包尚未开放", home.text)
         self.assertNotIn("当前为开发预览", home.text)
         self.assertNotIn("/api/portal/download/macos_arm64", home.text)
-        self.assertIn("前往 GitHub 安装 / 启动", home.text)
+        self.assertIn("查看开发者源码安装", home.text)
+        self.assertIn("当前公开安装方式", home.text)
+        self.assertNotIn("Developer ID signed", home.text)
+        self.assertNotIn("将 Peinidu.app 拖入 Applications", home.text)
         self.assertIn("网页只能确认本机", home.text)
 
     def test_public_search_and_map_are_explicit_metadata_allowlist(self) -> None:
@@ -287,8 +311,13 @@ class PublicPortalTest(unittest.TestCase):
         release = self.client.get("/api/portal/releases/latest")
         self.assertEqual(release.status_code, 200)
         text = release.text
-        self.assertNotIn("downloads.example.com", text)
-        self.assertEqual(len(release.json()["downloads"]), 2)
+        self.assertNotIn("/releases/download/", text)
+        self.assertEqual(release.json()["schema_version"], 1)
+        self.assertEqual(release.json()["channel"], "beta")
+        self.assertEqual(release.json()["version"], "0.1.0-beta.1")
+        self.assertTrue(release.json()["downloads"][0]["signed"])
+        self.assertTrue(release.json()["downloads"][0]["notarized"])
+        self.assertEqual(len(release.json()["downloads"]), 1)
 
         download = self.client.get(
             "/api/portal/download/macos_arm64",
@@ -297,7 +326,9 @@ class PublicPortalTest(unittest.TestCase):
         self.assertEqual(download.status_code, 307)
         self.assertEqual(
             download.headers["location"],
-            "https://downloads.example.com/peinidu-mac.zip",
+            "https://github.com/xiaoyu-ops/Read_with_you/releases/download/"
+            "v0.1.0-beta.1/"
+            "peinidu-local-core-v0.1.0-beta.1-darwin-arm64.dmg",
         )
         self.assertEqual(self.client.get("/api/portal/stats").json()["total_downloads"], 1)
 
@@ -410,6 +441,42 @@ class PublicPortalTest(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        self.assertEqual(
+            self.client.get("/api/portal/releases/latest").status_code,
+            503,
+        )
+        self.assertEqual(
+            self.client.get(
+                "/api/portal/download/macos_arm64",
+                follow_redirects=False,
+            ).status_code,
+            404,
+        )
+
+    def test_unsigned_or_unnotarized_release_manifest_fails_closed(self) -> None:
+        original = json.loads(self.manifest.read_text(encoding="utf-8"))
+        for field in ("signed", "notarized"):
+            payload = json.loads(json.dumps(original))
+            payload["downloads"]["macos_arm64"][field] = False
+            self.manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+            self.assertEqual(
+                self.client.get("/api/portal/releases/latest").status_code,
+                503,
+                field,
+            )
+            home = self.client.get("/")
+            self.assertIn("查看开发者源码安装", home.text)
+            self.assertNotIn("/api/portal/download/macos_arm64", home.text)
+
+    def test_release_manifest_rejects_noncanonical_github_asset(self) -> None:
+        payload = json.loads(self.manifest.read_text(encoding="utf-8"))
+        payload["downloads"]["macos_arm64"]["url"] = (
+            "https://example.com/peinidu-local-core-v0.1.0-beta.1-"
+            "darwin-arm64.dmg"
+        )
+        self.manifest.write_text(json.dumps(payload), encoding="utf-8")
+
         self.assertEqual(
             self.client.get("/api/portal/releases/latest").status_code,
             503,

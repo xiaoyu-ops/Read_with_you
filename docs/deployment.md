@@ -419,10 +419,17 @@ systemctl reload nginx
 `.env`、`data/` 和本地凭据，旧完整服务可以保留作回滚，但公网 Nginx 只能代理
 门户的 `8540`。
 
-发行清单格式见 `config/release-manifest.example.json`。下载源必须是 HTTPS，清单
-非法或未配置时按钮保持不可用，门户不得退回开发包或猜测下载地址。正式发布前仍需
-完成 Developer ID/notarization、Authenticode、干净机烟测、公开 SHA-256 和第三方
-许可清单。
+发行清单格式见 `config/release-manifest.example.json`。门户只接受 schema v1、
+合法 SemVer、带时区的发布时间和本仓库精确 GitHub tag/asset URL。macOS 下载项
+必须同时提供安全文件名、DMG 后缀、大小、SHA-256、`signed=true` 与
+`notarized=true`；任何旧清单、非 GitHub 下载源、未签名、未公证或不一致字段都
+fail-closed，并回到开发者源码安装，不显示普通用户下载按钮。
+
+可信清单配置后，首页服务端渲染“下载 macOS Beta”、Release notes 和三步拖放
+安装说明；`GET /api/portal/releases/latest` 只返回站内下载端点与验证元数据，不
+泄漏原始 asset URL，`GET /api/portal/download/macos_arm64` 再按清单跳转并记录
+无内容下载次数。正式发布前仍需完成 Developer ID/notarization、干净机烟测、公开
+SHA-256 和第三方许可清单；Windows 下载保持后续阶段。
 
 自 2026-07-26 起，产品默认发送无内容的匿名使用计数，不显示授权卡或统计开关。
 公网记录 `portal_visited`、`search_submitted`、`map_opened`，local Core 记录
