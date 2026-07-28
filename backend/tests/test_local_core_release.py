@@ -170,6 +170,15 @@ class LocalCoreReleaseTest(unittest.TestCase):
         self.assertIn("contents: write", text)
         self.assertIn("MACOS_DEVELOPER_ID_CERT_P12_BASE64", text)
         self.assertIn("APPLE_API_PRIVATE_KEY_BASE64", text)
+        self.assertEqual(
+            text.count(
+                "conda-incubator/setup-miniconda@"
+                "8ee1f361103df19b6f8c8655fd3967a8ecb162d5"
+            ),
+            2,
+        )
+        self.assertEqual(text.count("miniforge-version: 25.3.1-0"), 2)
+        self.assertEqual(text.count("poppler=24.08.0"), 2)
         self.assertIn("--draft", text)
         self.assertIn("--prerelease", text)
         self.assertIn("--cleanup-tag", text)

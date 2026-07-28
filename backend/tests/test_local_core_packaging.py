@@ -10,6 +10,19 @@ from scripts import build_local_core_bundle as bundle
 
 
 class LocalCorePackagingTest(unittest.TestCase):
+    def test_build_workflow_bootstraps_pinned_miniforge_on_macos(self) -> None:
+        workflow = bundle.ROOT / ".github" / "workflows" / "local-core-build.yml"
+        text = workflow.read_text(encoding="utf-8")
+        setup = (
+            "conda-incubator/setup-miniconda@"
+            "8ee1f361103df19b6f8c8655fd3967a8ecb162d5"
+        )
+        self.assertIn(setup, text)
+        self.assertIn("miniforge-version: 25.3.1-0", text)
+        self.assertIn("--override-channels --channel conda-forge poppler=24.08.0", text)
+        self.assertIn('"$RUNNER_TEMP/peinidu-poppler/bin/pdftotext" -v', text)
+        self.assertLess(text.index(setup), text.index("Install pinned Poppler on macOS"))
+
     def test_release_asset_names_are_versioned_and_architecture_is_canonical(self) -> None:
         self.assertEqual(
             bundle.release_asset_stem(

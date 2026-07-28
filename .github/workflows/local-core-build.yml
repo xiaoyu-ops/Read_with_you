@@ -55,11 +55,21 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Install pinned Miniforge on macOS
+        if: runner.os == 'macOS'
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
+        with:
+          miniforge-version: 25.3.1-0
+          activate-environment: ""
+          auto-activate: false
+
       - name: Install pinned Poppler on macOS
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          conda create --yes --quiet --prefix "$RUNNER_TEMP/peinidu-poppler" --channel conda-forge poppler=24.08.0
+          conda --version
+          conda create --yes --quiet --prefix "$RUNNER_TEMP/peinidu-poppler" --override-channels --channel conda-forge poppler=24.08.0
+          "$RUNNER_TEMP/peinidu-poppler/bin/pdftotext" -v
           echo "PEINIDU_POPPLER_BIN=$RUNNER_TEMP/peinidu-poppler/bin" >> "$GITHUB_ENV"
 
       - name: Install pinned Poppler on Windows

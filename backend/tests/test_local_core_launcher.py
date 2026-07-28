@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -88,6 +89,10 @@ class LocalCoreLauncherTest(unittest.TestCase):
                 launcher.configure_app_version(root)
                 self.assertEqual(os.environ["PEINIDU_APP_VERSION"], "custom")
 
+    @unittest.skipUnless(
+        sys.platform == "darwin",
+        "macOS bundle paths require POSIX pathlib semantics",
+    )
     def test_frozen_macos_package_root_uses_app_resources(self) -> None:
         with (
             patch.object(launcher.sys, "frozen", True, create=True),
@@ -102,6 +107,19 @@ class LocalCoreLauncherTest(unittest.TestCase):
                 launcher.default_package_root(),
                 Path("/Applications/Peinidu.app/Contents/Resources"),
             )
+
+    def test_frozen_non_macos_package_root_uses_executable_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            executable = Path(tmp) / "Peinidu.exe"
+            with (
+                patch.object(launcher.sys, "frozen", True, create=True),
+                patch.object(launcher.sys, "executable", str(executable)),
+                patch.object(launcher.sys, "platform", "win32"),
+            ):
+                self.assertEqual(
+                    launcher.default_package_root(),
+                    executable.resolve().parent,
+                )
 
     def test_running_probe_requires_local_core_identity(self) -> None:
         healthy = _FakeResponse(
