@@ -70,6 +70,13 @@ jobs:
           conda --version
           conda create --yes --quiet --prefix "$RUNNER_TEMP/peinidu-poppler" --override-channels --channel conda-forge poppler=24.08.0
           "$RUNNER_TEMP/peinidu-poppler/bin/pdftotext" -v
+          curl --fail --location --silent --show-error \
+            "https://invent.kde.org/mirrors/poppler/-/raw/poppler-24.08.0/COPYING" \
+            --output "$RUNNER_TEMP/peinidu-poppler/COPYING"
+          printf '%s  %s\n' \
+            "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6" \
+            "$RUNNER_TEMP/peinidu-poppler/COPYING" \
+            | shasum -a 256 --check -
           echo "PEINIDU_POPPLER_BIN=$RUNNER_TEMP/peinidu-poppler/bin" >> "$GITHUB_ENV"
 
       - name: Install pinned Poppler on Windows

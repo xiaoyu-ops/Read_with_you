@@ -179,6 +179,13 @@ class LocalCoreReleaseTest(unittest.TestCase):
         )
         self.assertEqual(text.count("miniforge-version: 25.3.1-0"), 2)
         self.assertEqual(text.count("poppler=24.08.0"), 2)
+        self.assertEqual(text.count("poppler-24.08.0/COPYING"), 2)
+        self.assertEqual(
+            text.count(
+                "ab15fd526bd8dd18a9e77ebc139656bf4d33e97fc7238cd11bf60e2b9b8666c6"
+            ),
+            2,
+        )
         self.assertIn("--draft", text)
         self.assertIn("--prerelease", text)
         self.assertIn("--cleanup-tag", text)

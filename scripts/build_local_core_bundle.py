@@ -121,6 +121,10 @@ def _run(command: Sequence[str], *, cwd: Path = ROOT, env: dict | None = None) -
     subprocess.run(list(command), cwd=cwd, env=env, check=True)
 
 
+def npm_executable_name(os_name: str | None = None) -> str:
+    return "npm.cmd" if (os_name or os.name) == "nt" else "npm"
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -154,7 +158,7 @@ def build_frontend(build_dir_name: str) -> Path:
         path: path.read_bytes() if path.exists() else None for path in generated_config
     }
     try:
-        _run(["npm", "run", "build"], cwd=FRONTEND, env=env)
+        _run([npm_executable_name(), "run", "build"], cwd=FRONTEND, env=env)
     finally:
         for path, original in originals.items():
             if original is None:
