@@ -97,6 +97,8 @@ class PublicPortalTest(unittest.TestCase):
         self.assertIn("隐私说明", home.text)
         self.assertIn("GitHub", home.text)
         self.assertIn("匿名使用概况", home.text)
+        self.assertIn('<aside class="hero-usage" aria-label="匿名使用概况">', home.text)
+        self.assertNotIn('<section class="metrics"', home.text)
         self.assertIn('id="total-portal-visits"', home.text)
         self.assertIn('id="total-core-starts"', home.text)
         self.assertIn('id="total-reader-opens"', home.text)

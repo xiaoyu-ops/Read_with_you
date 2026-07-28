@@ -101,10 +101,25 @@ h1 {
 .button.primary:hover,.minimal-button.is-primary:hover {
   background:var(--ink); border-color:var(--ink);
 }
-.hero-aside { align-self:stretch; padding:128px 0 0 28px; border-left:1px solid var(--line) }
-.hero-aside strong { display:block; margin-bottom:14px; font-size:13px }
-.hero-aside p { margin-bottom:20px; color:var(--muted); font-size:13px }
-.hero-aside a { color:var(--accent); font-size:13px; text-underline-offset:4px }
+.hero-usage {
+  align-self:stretch; padding:128px 0 108px 28px; border-left:1px solid var(--line);
+}
+.hero-usage-title {
+  margin:0 0 44px; color:var(--muted);
+  font:600 11px/1.5 ui-monospace,monospace; letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.hero-metric { padding:19px 0; border-top:1px solid var(--line) }
+.hero-metric span {
+  display:block; margin-bottom:7px; color:var(--muted); font-size:12px;
+}
+.hero-metric strong {
+  display:block; font-size:30px; font-weight:560; line-height:1.15;
+  font-variant-numeric:tabular-nums;
+}
+.hero-usage-note {
+  margin:20px 0 0; color:var(--muted); font-size:11px; line-height:1.6;
+}
 
 .product-demo {
   margin:0; padding:96px 0 104px; border-top:0; border-bottom:1px solid var(--ink);
@@ -135,19 +150,6 @@ h1 {
 .demo-note-heading strong { border-radius:0 }
 .demo-page-highlight { border-color:var(--accent); background:oklch(90% .07 265 / .34) }
 .demo-page-highlight span { border-radius:0 }
-
-.metrics {
-  display:grid; grid-template-columns:128px repeat(3,1fr);
-  border-bottom:1px solid var(--ink);
-}
-.metrics-title {
-  margin:0; padding:30px 18px 30px 0; color:var(--muted);
-  font:600 11px/1.5 ui-monospace,monospace; letter-spacing:.1em;
-}
-.metric { padding:27px 28px; border-left:1px solid var(--line) }
-.metric span { display:block; margin-bottom:5px; color:var(--muted); font-size:12px }
-.metric strong { font-size:28px; font-weight:560; font-variant-numeric:tabular-nums }
-.metric small { display:block; margin-top:7px; color:var(--muted); font-size:11px }
 
 .minimal-core {
   display:grid; grid-template-columns:128px minmax(0,1fr) 310px;
@@ -233,9 +235,16 @@ code { padding:1px 4px; background:var(--soft); font:500 .92em ui-monospace,mono
   .minimal-hero { grid-template-columns:92px minmax(0,1fr) }
   .hero-index { padding-top:94px }
   .hero-copy { padding:84px 48px }
-  .hero-aside { grid-column:2; padding:0 48px 70px; border-left:0 }
+  .hero-usage {
+    grid-column:2; padding:0 48px 70px; border-left:0;
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .hero-usage-title { grid-column:1/-1; margin-bottom:18px }
+  .hero-metric { padding:18px 20px 0 0 }
+  .hero-metric+.hero-metric { padding-left:20px; border-left:1px solid var(--line) }
+  .hero-usage-note { grid-column:1/-1; margin-top:22px }
   .demo-workspace { grid-template-columns:minmax(0,1fr) minmax(340px,.92fr) }
-  .metrics,.principles-grid { grid-template-columns:92px repeat(3,1fr) }
+  .principles-grid { grid-template-columns:92px repeat(3,1fr) }
   .minimal-core { grid-template-columns:92px minmax(0,1fr) }
   .core-copy { padding:60px 48px }
   .core-state { grid-column:2; padding:0 48px 56px; border-left:1px solid var(--line) }
@@ -259,14 +268,18 @@ code { padding:1px 4px; background:var(--soft); font:500 .92em ui-monospace,mono
   .hero-copy>p:not(.hero-kicker) { font-size:15px }
   .hero-actions,.core-actions { display:grid }
   .minimal-button,.core-actions .button { width:100% }
-  .hero-aside { grid-column:1; padding:24px 0 52px; border-top:1px solid var(--line) }
+  .hero-usage {
+    grid-column:1; padding:24px 0 52px; border-top:1px solid var(--line);
+    display:block;
+  }
+  .hero-usage-title { margin-bottom:10px }
+  .hero-metric { padding:18px 0 }
+  .hero-metric+.hero-metric { padding-left:0; border-left:0 }
+  .hero-usage-note { margin-top:12px }
   .product-demo { padding:68px 0 76px }
   .demo-intro { grid-template-columns:1fr }
   .demo-workspace { grid-template-columns:1fr }
   .demo-panel { border-left:0; border-top:1px solid var(--ink) }
-  .metrics { grid-template-columns:1fr }
-  .metrics-title { padding:24px 0 10px }
-  .metric { padding:20px 0; border-left:0; border-top:1px solid var(--line) }
   .minimal-core { grid-template-columns:1fr }
   .core-index { padding:62px 0 14px }
   .core-copy { padding:20px 0 48px; border-left:0 }
@@ -322,10 +335,6 @@ def minimal_home_document(
           <a class="button primary" href="{install_href}">下载 Apple 芯片 Mac Beta</a>
           <a class="button" href="{release_url}" target="_blank" rel="noopener noreferrer">查看 Release notes ↗</a>
           <a class="button" href="{github}" target="_blank" rel="noopener noreferrer">开发者源码安装 ↗</a>"""
-        hero_release_link = (
-            f'<a href="{release_url}" target="_blank" '
-            'rel="noopener noreferrer">查看当前 Beta 与完整校验信息 →</a>'
-        )
     else:
         install_href = github
         install_label = "查看开发者源码安装"
@@ -335,9 +344,6 @@ def minimal_home_document(
         install_guidance = ""
         core_install_actions = f"""
           <a class="button primary" href="{github}" target="_blank" rel="noopener noreferrer">查看开发者源码安装 ↗</a>"""
-        hero_release_link = (
-            '<a href="#local-core">查看本地启动说明 ↓</a>'
-        )
     install_target = (
         ""
         if has_mac_release
@@ -393,21 +399,16 @@ def minimal_home_document(
           <a id="install-core" class="minimal-button" href="{install_href}"{install_target}>{install_label}</a>
         </div>
       </div>
-      <aside class="hero-aside">
-        <strong>网页入口，本地工作</strong>
-        <p>本页会先检查这台电脑上的 Core；未运行时请按 GitHub 说明安装或启动。</p>
-        {hero_release_link}
+      <aside class="hero-usage" aria-label="匿名使用概况">
+        <p class="hero-usage-title">03 / Usage</p>
+        <div class="hero-metric"><span>累计访问</span><strong id="total-portal-visits" aria-live="polite">读取中…</strong></div>
+        <div class="hero-metric"><span>Core 启动</span><strong id="total-core-starts" aria-live="polite">读取中…</strong></div>
+        <div class="hero-metric"><span>开始阅读</span><strong id="total-reader-opens" aria-live="polite">读取中…</strong></div>
+        <p class="hero-usage-note">累计匿名次数，不代表唯一用户人数</p>
       </aside>
     </section>
 
     {demo_html}
-
-    <section class="metrics" aria-label="匿名使用概况">
-      <p class="metrics-title">03 / Usage</p>
-      <div class="metric"><span>累计访问</span><strong id="total-portal-visits" aria-live="polite">读取中…</strong></div>
-      <div class="metric"><span>Core 启动</span><strong id="total-core-starts" aria-live="polite">读取中…</strong></div>
-      <div class="metric"><span>开始阅读</span><strong id="total-reader-opens" aria-live="polite">读取中…</strong><small>累计匿名次数，不代表唯一用户人数</small></div>
-    </section>
 
     <section id="local-core" class="minimal-core" aria-labelledby="local-core-title">
       <p class="core-index">04 / Local core</p>
